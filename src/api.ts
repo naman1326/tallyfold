@@ -94,7 +94,11 @@ export async function uploadReceipt(userId: string, file: File, meta: UploadMeta
 
 // Review token and API key are injected server-side by the proxy;
 // they never exist in browser code or client JavaScript.
-export async function approve(e: Expense, paymentType: string) {
+export async function approve(
+  e: Expense,
+  paymentType: string,
+  category: string
+) {
   if (DEMO) throw demoErr();
   return call('/review', {
     method: 'POST',
@@ -105,7 +109,7 @@ export async function approve(e: Expense, paymentType: string) {
       merchant: e.merchant,
       receiptDate: e.receiptDate,
       total: e.total,
-      category: e.category,
+      category,
       currency: e.currency,
       paymentAccountId: e.paymentAccountId,
       paymentType

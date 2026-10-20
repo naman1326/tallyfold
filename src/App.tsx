@@ -511,12 +511,13 @@ function Detail({
   onDone: () => void;
 }) {
   const [pt, setPt] = useState('Cash');
+  const [selectedCategory, setSelectedCategory] = useState(e.category || '');
   const [ok, setOk] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const { success, error } = useToast();
 
-  const b = blockers(e);
+  const b = blockers({ ...e, category: selectedCategory });
 
   // Keyboard shortcut: ESC to close
   useEffect(() => {
@@ -536,7 +537,7 @@ function Detail({
     setBusy(true);
     setMsg('');
     try {
-      const r = await api.approve(e, pt);
+      const r = await api.approve(e, pt, selectedCategory);
       const text = (r.message || 'Approved') + ' — status will show PENDING; QuickBooks sync runs asynchronously.';
       setMsg(text);
       success('Receipt approved and submitted for sync');
@@ -680,20 +681,38 @@ function Detail({
                 <span>Account is Checking 35 ({e.paymentAccountId || 'missing'})</span>
               </div>
               <div className="check-item">
-                {['Office Supplies', 'Meals & Entertainment', 'Travel & Transport', 'Utilities'].includes(e.category) ? <CheckCircle2 size={16} className="check-pass" /> : <XCircle size={16} className="check-fail" />}
-                <span>Approved QBO category ({e.category || 'missing'})</span>
+                {['Office Supplies', 'Meals & Entertainment', 'Travel & Transport', 'Utilities'].includes(selectedCategory) ? <CheckCircle2 size={16} className="check-pass" /> : <XCircle size={16} 				className="check-fail" />}
+			<span>Approved QBO category ({selectedCategory || 'missing'})</span>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', marginTop: '0.5rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 500 }}>
-                Payment Method:
-                <select value={pt} onChange={x => setPt(x.target.value)}>
-                  <option value="Cash">Cash</option>
-                  <option value="Check">Check</option>
-                </select>
-              </label>
-            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '0.5rem' }}>
+  		<label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontWeight: 500 }}>
+    			Expense Category:
+    			<select
+      				value={selectedCategory}
+      				onChange={x => {
+        				setSelectedCategory(x.target.value);
+        				setOk(false);
+      				}}
+    			>
+
+      				<option value="">Select a category</option>
+      				<option value="Office Supplies">Office Supplies</option>
+      				<option value="Meals & Entertainment">Meals & Entertainment</option>
+      				<option value="Travel & Transport">Travel & Transport</option>
+      				<option value="Utilities">Utilities</option>
+    			</select>
+  		</label>
+
+  		<label style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', fontWeight: 500 }}>
+    			Payment Method:
+    			<select value={pt} onChange={x => setPt(x.target.value)}>
+      				<option value="Cash">Cash</option>
+      				<option value="Check">Check</option>
+    			</select>
+  		</label>
+	    </div>
 
             <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.65rem', fontSize: '0.875rem', cursor: 'pointer' }}>
               <input
@@ -708,7 +727,7 @@ function Detail({
             <div className="approve-actions">
               <button
                 className="primary"
-                disabled={busy || !ok || b.length > 0}
+                disabled={busy || !ok || !['Office Supplies', 'Meals & Entertainment', 'Travel & Transport', 'Utilities'].includes(selectedCategory) || b.length > 0}
                 onClick={go}
               >
                 {busy ? <><RefreshCw size={14} className="spin" /> Submitting…</> : <><Check size={16} /> Approve for sync</>}

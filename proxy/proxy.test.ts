@@ -82,6 +82,27 @@ describe('Tallyfold Production API Proxy Handler', () => {
       expect(res.statusCode).toBe(405);
       expect(res.headers['Allow']).toBe('POST, OPTIONS');
     });
+
+    it('normalizes trailing slashes on whitelisted routes', async () => {
+      let calledUrl = '';
+      globalThis.fetch = vi.fn().mockImplementation(async (url: string) => {
+        calledUrl = url;
+        return new Response(JSON.stringify({ items: [] }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' }
+        });
+      });
+
+      const event = {
+        httpMethod: 'GET',
+        rawPath: '/api/expenses/',
+        headers: { origin: PROD_ORIGIN }
+      };
+
+      const res = await handler(event);
+      expect(res.statusCode).toBe(200);
+      expect(calledUrl).toBe('https://vec4q0sqc9.execute-api.eu-north-1.amazonaws.com/prod/expenses');
+    });
   });
 
   describe('SSM Parameter Store Resolution & Caching', () => {

@@ -197,7 +197,12 @@ export async function handler(event) {
   const rawPath = event.rawPath || event.path || '/';
   let subPath = rawPath.replace(/^\/?api(?=\/|$)/, '');
   if (!subPath || !subPath.startsWith('/')) {
-    subPath = '/' + subPath;
+  	subPath = '/' + subPath;
+  }
+
+  // Normalize trailing slashes for API route matching.
+  if (subPath.length > 1) {
+  	subPath = subPath.replace(/\/+$/, '');
   }
 
   // 5. Whitelist Validation (Strict endpoint & method checking)
