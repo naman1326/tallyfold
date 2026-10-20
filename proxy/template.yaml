@@ -7,23 +7,23 @@ Parameters:
     Type: String
     Default: 'https://vec4q0sqc9.execute-api.eu-north-1.amazonaws.com/prod'
     Description: Base URL of the existing API Gateway REST API (including /prod stage).
-  ApiKey:
-    Type: String
-    NoEcho: true
-    Description: Secret API key for API Gateway (injected server-side as x-api-key).
-  ReviewToken:
-    Type: String
-    NoEcho: true
-    Description: Secret review token for POST /review approvals (injected server-side as x-review-token).
   AllowedOrigin:
     Type: String
-    Default: 'http://localhost:5173'
-    Description: The exact origin of the deployed Amplify frontend app (e.g. https://main.d123456789.amplifyapp.com). No wildcards.
+    Default: 'https://main.d7hymcw027vmv.amplifyapp.com'
+    Description: The exact origin of the deployed Amplify frontend app. No wildcards.
   ProxySecret:
     Type: String
     NoEcho: true
     Default: ''
-    Description: Optional shared access token (x-proxy-secret) to restrict Function URL calls to authorized Amplify rewrites / reverse proxies.
+    Description: Optional shared access token (x-proxy-secret) to restrict Function URL calls to authorized Amplify rewrites / reverse proxies. Keep empty for standard Amplify rewrites.
+  ApiKeyParameterName:
+    Type: String
+    Default: '/expense/proxy/api_key'
+    Description: SSM Parameter Store SecureString parameter name for the API Gateway API key.
+  ReviewTokenParameterName:
+    Type: String
+    Default: '/expense/proxy/review_token'
+    Description: SSM Parameter Store SecureString parameter name for the review token.
 
 Resources:
   TallyfoldApiProxyFunction:
@@ -35,6 +35,15 @@ Resources:
       CodeUri: .
       MemorySize: 256
       Timeout: 15
+      Policies:
+        - Statement:
+            - Sid: AllowSSMGetParameter
+              Effect: Allow
+              Action:
+                - ssm:GetParameter
+              Resource:
+                - !Sub 'arn:aws:ssm:eu-north-1:${AWS::AccountId}:parameter/expense/proxy/api_key'
+                - !Sub 'arn:aws:ssm:eu-north-1:${AWS::AccountId}:parameter/expense/proxy/review_token'
       # Note on AuthType: NONE is used because static frontend SPAs on Amplify Hosting
       # run directly in browser clients and cannot sign requests with AWS IAM (SigV4)
       # without a complete Cognito Identity Pool & STS authentication stack.
@@ -42,7 +51,7 @@ Resources:
       # 1) Strict endpoint & HTTP method whitelisting (GET /expenses, POST /upload, POST /review).
       # 2) Strict CORS origin lockdown to the Amplify app domain (AllowedOrigin).
       # 3) Optional shared secret verification header (ProxySecret).
-      # 4) Complete server-side isolation of API_KEY and REVIEW_TOKEN.
+      # 4) Complete server-side isolation: secrets fetched at runtime from SSM Parameter Store.
       FunctionUrlConfig:
         AuthType: NONE
         Cors:
@@ -64,10 +73,10 @@ Resources:
       Environment:
         Variables:
           API_BASE: !Ref ApiBase
-          API_KEY: !Ref ApiKey
-          REVIEW_TOKEN: !Ref ReviewToken
           ALLOWED_ORIGIN: !Ref AllowedOrigin
           PROXY_SECRET: !Ref ProxySecret
+          API_KEY_PARAM_NAME: !Ref ApiKeyParameterName
+          REVIEW_TOKEN_PARAM_NAME: !Ref ReviewTokenParameterName
 
 Outputs:
   ProxyFunctionUrl:

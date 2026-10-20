@@ -8,14 +8,88 @@
  *     - POST /api/review
  *   Returns 404 for unknown paths, and 405 for unsupported HTTP methods.
  * - Restricts CORS to the configured Amplify website origin (ALLOWED_ORIGIN).
- * - Supports access-control verification via optional PROXY_SECRET (x-proxy-secret header).
- * - Injects 'x-api-key' server-side from API_KEY.
+ *   (Note: CORS provides browser-level domain restrictions for abuse prevention;
+ *    it does not authenticate users.)
+ * - Reads API key and review token dynamically at runtime from AWS Systems Manager
+ *   (SSM) Parameter Store SecureString parameters:
+ *     - /expense/proxy/api_key
+ *     - /expense/proxy/review_token
+ * - Caches retrieved secrets in-memory across warm Lambda invocations.
+ * - Injects 'x-api-key' server-side from retrieved SSM parameter.
  * - Injects 'x-review-token' header server-side for POST /review without modifying client body.
  * - Strips '/api' prefix exactly once while preserving the '/prod' stage path and query params.
  * - Never logs or exposes secrets, tokens, sensitive payloads, or presigned URLs.
  */
 
+import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
+
 const DEFAULT_API_BASE = 'https://vec4q0sqc9.execute-api.eu-north-1.amazonaws.com/prod';
+const DEFAULT_ALLOWED_ORIGIN = 'https://main.d7hymcw027vmv.amplifyapp.com';
+const DEFAULT_API_KEY_PARAM = '/expense/proxy/api_key';
+const DEFAULT_REVIEW_TOKEN_PARAM = '/expense/proxy/review_token';
+
+// In-memory cache for parameters to optimize warm invocations
+let cachedApiKey = null;
+let cachedReviewToken = null;
+
+let ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'eu-north-1' });
+
+export function setSSMClient(client) {
+  ssmClient = client;
+}
+
+export function resetSecretsCache() {
+  cachedApiKey = null;
+  cachedReviewToken = null;
+}
+
+async function fetchSSMParameter(paramName) {
+  if (!paramName) return '';
+  const command = new GetParameterCommand({
+    Name: paramName,
+    WithDecryption: true,
+  });
+  const response = await ssmClient.send(command);
+  return response.Parameter?.Value || '';
+}
+
+export async function getApiKey() {
+  if (cachedApiKey) return cachedApiKey;
+  if (process.env.API_KEY) {
+    cachedApiKey = process.env.API_KEY.trim();
+    return cachedApiKey;
+  }
+  const paramName = (process.env.API_KEY_PARAM_NAME || process.env.SSM_API_KEY_PARAM || DEFAULT_API_KEY_PARAM).trim();
+  try {
+    const val = await fetchSSMParameter(paramName);
+    if (val) {
+      cachedApiKey = val.trim();
+      return cachedApiKey;
+    }
+  } catch {
+    // Fail safely: Never log secret values, parameter names, or internal AWS errors
+  }
+  return '';
+}
+
+export async function getReviewToken() {
+  if (cachedReviewToken) return cachedReviewToken;
+  if (process.env.REVIEW_TOKEN) {
+    cachedReviewToken = process.env.REVIEW_TOKEN.trim();
+    return cachedReviewToken;
+  }
+  const paramName = (process.env.REVIEW_TOKEN_PARAM_NAME || process.env.SSM_REVIEW_TOKEN_PARAM || DEFAULT_REVIEW_TOKEN_PARAM).trim();
+  try {
+    const val = await fetchSSMParameter(paramName);
+    if (val) {
+      cachedReviewToken = val.trim();
+      return cachedReviewToken;
+    }
+  } catch {
+    // Fail safely: Never log secret values, parameter names, or internal AWS errors
+  }
+  return '';
+}
 
 // Strict whitelist of permitted endpoints and their allowed HTTP methods
 export const ALLOWED_ROUTES = {
@@ -37,7 +111,7 @@ function getHeader(headers, name) {
 
 export function resolveCors(event, allowedOriginEnv) {
   const originHeader = getHeader(event?.headers, 'origin');
-  const allowedList = (allowedOriginEnv || '')
+  const allowedList = (allowedOriginEnv !== undefined ? allowedOriginEnv : DEFAULT_ALLOWED_ORIGIN)
     .split(',')
     .map(o => o.trim())
     .filter(Boolean);
@@ -77,7 +151,7 @@ export function resolveCors(event, allowedOriginEnv) {
 
 export async function handler(event) {
   const method = (event.requestContext?.http?.method || event.httpMethod || 'GET').toUpperCase();
-  const allowedOriginEnv = process.env.ALLOWED_ORIGIN || '';
+  const allowedOriginEnv = process.env.ALLOWED_ORIGIN !== undefined ? process.env.ALLOWED_ORIGIN : DEFAULT_ALLOWED_ORIGIN;
   const { corsHeaders, isAllowed } = resolveCors(event, allowedOriginEnv);
 
   // 1. Handle CORS Preflight (OPTIONS)
@@ -106,6 +180,7 @@ export async function handler(event) {
   }
 
   // 3. Optional Proxy Secret Verification (Access Control for Function URL)
+  // Disabled by default because AWS Amplify Hosting rewrites cannot inject custom request headers
   const requiredProxySecret = process.env.PROXY_SECRET || '';
   if (requiredProxySecret) {
     const incomingSecret = getHeader(event.headers, 'x-proxy-secret');
@@ -118,36 +193,14 @@ export async function handler(event) {
     }
   }
 
-  // 4. Validate Required Server-Side Environment Variables
-  const rawApiBase = process.env.API_BASE !== undefined ? process.env.API_BASE : DEFAULT_API_BASE;
-  const apiBase = (rawApiBase || '').trim().replace(/\/+$/, '');
-  const apiKey = (process.env.API_KEY || '').trim();
-  const reviewToken = (process.env.REVIEW_TOKEN || '').trim();
-
-  if (!apiBase || (!apiBase.startsWith('http://') && !apiBase.startsWith('https://'))) {
-    return {
-      statusCode: 500,
-      headers: { ...corsHeaders, 'content-type': 'application/json' },
-      body: JSON.stringify({ error: 'Configuration Error', message: 'Invalid or missing API_BASE environment variable.' })
-    };
-  }
-
-  if (!apiKey) {
-    return {
-      statusCode: 500,
-      headers: { ...corsHeaders, 'content-type': 'application/json' },
-      body: JSON.stringify({ error: 'Configuration Error', message: 'Server-side API key configuration missing.' })
-    };
-  }
-
-  // 5. Extract and normalize path
+  // 4. Extract and normalize path
   const rawPath = event.rawPath || event.path || '/';
   let subPath = rawPath.replace(/^\/?api(?=\/|$)/, '');
   if (!subPath || !subPath.startsWith('/')) {
     subPath = '/' + subPath;
   }
 
-  // 6. Whitelist Validation (Strict endpoint & method checking)
+  // 5. Whitelist Validation (Strict endpoint & method checking)
   if (!(subPath in ALLOWED_ROUTES)) {
     return {
       statusCode: 404,
@@ -172,14 +225,39 @@ export async function handler(event) {
     };
   }
 
-  // 7. Verify review token availability if route is /review
-  const isReview = subPath === '/review';
-  if (isReview && !reviewToken) {
+  // 6. Validate Required Server-Side Environment Variables & Secrets
+  const rawApiBase = process.env.API_BASE !== undefined ? process.env.API_BASE : DEFAULT_API_BASE;
+  const apiBase = (rawApiBase || '').trim().replace(/\/+$/, '');
+
+  if (!apiBase || (!apiBase.startsWith('http://') && !apiBase.startsWith('https://'))) {
     return {
       statusCode: 500,
       headers: { ...corsHeaders, 'content-type': 'application/json' },
-      body: JSON.stringify({ error: 'Configuration Error', message: 'Server-side review token configuration missing.' })
+      body: JSON.stringify({ error: 'Configuration Error', message: 'Invalid or missing API_BASE environment variable.' })
     };
+  }
+
+  const apiKey = await getApiKey();
+  if (!apiKey) {
+    return {
+      statusCode: 500,
+      headers: { ...corsHeaders, 'content-type': 'application/json' },
+      body: JSON.stringify({ error: 'Configuration Error', message: 'Server-side API key configuration missing.' })
+    };
+  }
+
+  // 7. Verify review token availability if route is /review
+  const isReview = subPath === '/review';
+  let reviewToken = '';
+  if (isReview) {
+    reviewToken = await getReviewToken();
+    if (!reviewToken) {
+      return {
+        statusCode: 500,
+        headers: { ...corsHeaders, 'content-type': 'application/json' },
+        body: JSON.stringify({ error: 'Configuration Error', message: 'Server-side review token configuration missing.' })
+      };
+    }
   }
 
   // 8. Build target URL (preserves /prod stage and query parameters)
@@ -228,7 +306,7 @@ export async function handler(event) {
       },
       body: responseText
     };
-  } catch (err) {
+  } catch {
     // Sanitize error logging / output — never expose internal details
     return {
       statusCode: 502,

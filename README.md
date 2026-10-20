@@ -90,12 +90,15 @@ flowchart TD
   - API Gateway requires `x-api-key` for endpoints like `GET /expenses`, and the review Lambda requires `x-review-token` for `POST /review`.
   - Static hosting (AWS Amplify) cannot inject custom server-side request headers or modify request bodies on reverse-proxy rules.
 - **How It Works**:
-  - A lightweight Lambda handler ([proxy/handler.js](./proxy/handler.js)) running on `nodejs24.x` with Function URL or API Gateway HTTP API.
+  - A lightweight Lambda handler ([proxy/handler.js](./proxy/handler.js)) running on `nodejs24.x` with Function URL.
+  - Dynamically retrieves `API_KEY` and `REVIEW_TOKEN` at runtime from AWS Systems Manager (SSM) Parameter Store `SecureString` parameters (`/expense/proxy/api_key` and `/expense/proxy/review_token`). Secrets are never stored in CloudFormation templates, parameters, or git.
+  - Caches parameter values in-memory across warm Lambda invocations.
   - Receives requests at `/api/expenses`, `/api/upload`, and `/api/review`.
   - Strips the `/api` prefix exactly once and preserves the `/prod` stage path.
-  - Injects `x-api-key: API_KEY` server-side.
-  - Injects `x-review-token: REVIEW_TOKEN` header server-side on `POST /review` without mutating client payloads.
+  - Injects `x-api-key` header server-side.
+  - Injects `x-review-token` header server-side on `POST /review` without mutating client payloads.
   - Handles CORS preflight (`OPTIONS` $\to$ 204 No Content) natively at Function URL and handler levels.
+  - **Access Control Note**: CORS origin lockdown defaults to `https://main.d7hymcw027vmv.amplifyapp.com`. CORS provides browser-level domain restrictions for basic abuse prevention; it does not authenticate users (real user authentication requires Amazon Cognito JWT tokens). `PROXY_SECRET` is kept disabled/empty by default because Amplify rewrites cannot inject custom headers.
 
 ### 3. AWS Backend Pipeline & QuickBooks Online
 - **Amazon S3**: Stores raw receipt images. Client performs direct browser-to-S3 upload using the presigned URL returned by `POST /api/upload`.
@@ -108,9 +111,30 @@ flowchart TD
 
 ## AWS Amplify Production Setup
 
-### Step 1: Deploy the Proxy Function
+### Step 1: Create SecureString Parameters in AWS Systems Manager
 
-Deploy the serverless proxy via the included SAM / CloudFormation template ([proxy/template.yaml](./proxy/template.yaml)):
+Before deploying the proxy, store the API Gateway API key and review token in AWS Systems Manager Parameter Store in `eu-north-1`. This keeps secrets completely out of source code, git commits, and CloudFormation parameter files:
+
+1. Open the **AWS Systems Manager Console** and select region **`eu-north-1` (Stockholm)**.
+2. In the navigation pane, choose **Parameter Store**, then click **Create parameter**.
+3. Create the **API Key** parameter:
+   - **Name**: `/expense/proxy/api_key`
+   - **Type**: `SecureString`
+   - **KMS key source**: `My current account` (uses the default AWS managed key `alias/aws/ssm`)
+   - **Value**: Enter your API Gateway API key.
+   - Click **Create parameter**.
+4. Create the **Review Token** parameter:
+   - **Name**: `/expense/proxy/review_token`
+   - **Type**: `SecureString`
+   - **KMS key source**: `My current account` (uses the default AWS managed key `alias/aws/ssm`)
+   - **Value**: Enter your secret review token.
+   - Click **Create parameter**.
+
+> **Security Note**: The Lambda execution role defined in [`proxy/template.yaml`](./proxy/template.yaml) is strictly granted `ssm:GetParameter` on only these two parameter ARNs in `eu-north-1`. It has no access to any other SSM parameters or AWS services.
+
+### Step 2: Deploy the Proxy Function
+
+Deploy the serverless proxy via the included SAM / CloudFormation template ([proxy/template.yaml](./proxy/template.yaml)). No secret values need to be passed on the command line:
 
 ```bash
 # Using AWS SAM CLI:
@@ -118,14 +142,12 @@ sam deploy --template-file proxy/template.yaml \
   --stack-name tallyfold-proxy \
   --capabilities CAPABILITY_IAM \
   --parameter-overrides \
-    ApiBase=https://vec4q0sqc9.execute-api.eu-north-1.amazonaws.com/prod \
-    ApiKey=YOUR_API_KEY \
-    ReviewToken=YOUR_REVIEW_TOKEN
+    AllowedOrigin=https://main.d7hymcw027vmv.amplifyapp.com
 ```
 
 This returns a `ProxyFunctionUrl` (e.g. `https://<unique-id>.lambda-url.eu-north-1.on.aws/`).
 
-### Step 2: Configure Amplify Hosting Rewrites
+### Step 3: Configure Amplify Hosting Rewrites
 
 In the **AWS Amplify Console**:
 1. Navigate to **Hosting** &rarr; **Rewrites and redirects**.

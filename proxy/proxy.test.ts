@@ -1,11 +1,13 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { handler } from './handler.js';
+import { handler, resetSecretsCache, setSSMClient } from './handler.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+const PROD_ORIGIN = 'https://main.d7hymcw027vmv.amplifyapp.com';
 
 describe('Tallyfold Production API Proxy Handler', () => {
   const originalFetch = globalThis.fetch;
@@ -15,13 +17,15 @@ describe('Tallyfold Production API Proxy Handler', () => {
     process.env.API_BASE = 'https://vec4q0sqc9.execute-api.eu-north-1.amazonaws.com/prod';
     process.env.API_KEY = 'test-secret-api-key';
     process.env.REVIEW_TOKEN = 'test-secret-review-token';
-    process.env.ALLOWED_ORIGIN = 'https://main.d123456789.amplifyapp.com';
+    process.env.ALLOWED_ORIGIN = PROD_ORIGIN;
     delete process.env.PROXY_SECRET;
+    resetSecretsCache();
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
     process.env = { ...originalEnv };
+    resetSecretsCache();
     vi.restoreAllMocks();
   });
 
@@ -30,7 +34,7 @@ describe('Tallyfold Production API Proxy Handler', () => {
       const event = {
         httpMethod: 'GET',
         rawPath: '/api/admin',
-        headers: { origin: 'https://main.d123456789.amplifyapp.com' }
+        headers: { origin: PROD_ORIGIN }
       };
 
       const res = await handler(event);
@@ -45,7 +49,7 @@ describe('Tallyfold Production API Proxy Handler', () => {
       const event = {
         httpMethod: 'POST',
         rawPath: '/api/expenses',
-        headers: { origin: 'https://main.d123456789.amplifyapp.com' }
+        headers: { origin: PROD_ORIGIN }
       };
 
       const res = await handler(event);
@@ -59,7 +63,7 @@ describe('Tallyfold Production API Proxy Handler', () => {
       const event = {
         httpMethod: 'GET',
         rawPath: '/api/upload',
-        headers: { origin: 'https://main.d123456789.amplifyapp.com' }
+        headers: { origin: PROD_ORIGIN }
       };
 
       const res = await handler(event);
@@ -71,7 +75,7 @@ describe('Tallyfold Production API Proxy Handler', () => {
       const event = {
         httpMethod: 'GET',
         rawPath: '/api/review',
-        headers: { origin: 'https://main.d123456789.amplifyapp.com' }
+        headers: { origin: PROD_ORIGIN }
       };
 
       const res = await handler(event);
@@ -80,13 +84,78 @@ describe('Tallyfold Production API Proxy Handler', () => {
     });
   });
 
-  describe('Environment Variable Validation', () => {
+  describe('SSM Parameter Store Resolution & Caching', () => {
+    it('retrieves API key and review token from SSM Parameter Store when env vars are not set', async () => {
+      delete process.env.API_KEY;
+      delete process.env.REVIEW_TOKEN;
+
+      const mockSend = vi.fn().mockImplementation(async (command: { input: { Name: string } }) => {
+        if (command.input.Name === '/expense/proxy/api_key') {
+          return { Parameter: { Value: 'ssm-fetched-api-key' } };
+        }
+        if (command.input.Name === '/expense/proxy/review_token') {
+          return { Parameter: { Value: 'ssm-fetched-review-token' } };
+        }
+        throw new Error('Parameter not found');
+      });
+
+      setSSMClient({ send: mockSend } as unknown as import('@aws-sdk/client-ssm').SSMClient);
+
+      let calledHeaders: Record<string, string> = {};
+      globalThis.fetch = vi.fn().mockImplementation(async (_url: string, init?: RequestInit) => {
+        calledHeaders = (init?.headers || {}) as Record<string, string>;
+        return new Response(JSON.stringify({ status: 'ok' }), { status: 200 });
+      });
+
+      const event = {
+        httpMethod: 'POST',
+        rawPath: '/api/review',
+        headers: { origin: PROD_ORIGIN },
+        body: JSON.stringify({ userId: 'alice' })
+      };
+
+      const res = await handler(event);
+      expect(res.statusCode).toBe(200);
+      expect(calledHeaders['x-api-key']).toBe('ssm-fetched-api-key');
+      expect(calledHeaders['x-review-token']).toBe('ssm-fetched-review-token');
+      expect(mockSend).toHaveBeenCalledTimes(2);
+
+      // Verify in-memory caching on second invocation
+      await handler(event);
+      expect(mockSend).toHaveBeenCalledTimes(2); // No extra SSM calls due to caching
+    });
+
+    it('fails safely with generic 500 when SSM parameter fetch throws', async () => {
+      delete process.env.API_KEY;
+      delete process.env.REVIEW_TOKEN;
+
+      const mockSend = vi.fn().mockRejectedValue(new Error('AccessDeniedException: User not authorized'));
+      setSSMClient({ send: mockSend } as unknown as import('@aws-sdk/client-ssm').SSMClient);
+
+      const event = {
+        httpMethod: 'GET',
+        rawPath: '/api/expenses',
+        headers: { origin: PROD_ORIGIN }
+      };
+
+      const res = await handler(event);
+      expect(res.statusCode).toBe(500);
+      const body = JSON.parse(res.body);
+      expect(body.error).toBe('Configuration Error');
+      expect(body.message).toBe('Server-side API key configuration missing.');
+      // Never leak internal AWS exception or parameter names
+      expect(res.body).not.toContain('AccessDeniedException');
+      expect(res.body).not.toContain('/expense/proxy');
+    });
+  });
+
+  describe('Configuration Validation', () => {
     it('returns 500 safely if API_BASE is missing or invalid', async () => {
       process.env.API_BASE = '';
       const event = {
         httpMethod: 'GET',
         rawPath: '/api/expenses',
-        headers: { origin: 'https://main.d123456789.amplifyapp.com' }
+        headers: { origin: PROD_ORIGIN }
       };
 
       const res = await handler(event);
@@ -96,12 +165,14 @@ describe('Tallyfold Production API Proxy Handler', () => {
       expect(body.message).toContain('API_BASE');
     });
 
-    it('returns 500 safely if API_KEY is missing', async () => {
-      process.env.API_KEY = '';
+    it('returns 500 safely if API key cannot be resolved', async () => {
+      delete process.env.API_KEY;
+      setSSMClient({ send: vi.fn().mockResolvedValue({}) } as unknown as import('@aws-sdk/client-ssm').SSMClient);
+
       const event = {
         httpMethod: 'GET',
         rawPath: '/api/expenses',
-        headers: { origin: 'https://main.d123456789.amplifyapp.com' }
+        headers: { origin: PROD_ORIGIN }
       };
 
       const res = await handler(event);
@@ -111,12 +182,21 @@ describe('Tallyfold Production API Proxy Handler', () => {
       expect(body.message).toContain('API key');
     });
 
-    it('returns 500 safely on /review if REVIEW_TOKEN is missing', async () => {
-      process.env.REVIEW_TOKEN = '';
+    it('returns 500 safely on /review if review token cannot be resolved', async () => {
+      delete process.env.REVIEW_TOKEN;
+      setSSMClient({
+        send: vi.fn().mockImplementation(async (cmd: { input: { Name: string } }) => {
+          if (cmd.input.Name === '/expense/proxy/api_key') {
+            return { Parameter: { Value: 'valid-api-key' } };
+          }
+          return {}; // Missing review token
+        })
+      } as unknown as import('@aws-sdk/client-ssm').SSMClient);
+
       const event = {
         httpMethod: 'POST',
         rawPath: '/api/review',
-        headers: { origin: 'https://main.d123456789.amplifyapp.com' },
+        headers: { origin: PROD_ORIGIN },
         body: JSON.stringify({ userId: 'demo' })
       };
 
@@ -133,12 +213,12 @@ describe('Tallyfold Production API Proxy Handler', () => {
       const event = {
         httpMethod: 'OPTIONS',
         rawPath: '/api/expenses',
-        headers: { origin: 'https://main.d123456789.amplifyapp.com' }
+        headers: { origin: PROD_ORIGIN }
       };
 
       const res = await handler(event);
       expect(res.statusCode).toBe(204);
-      expect(res.headers['Access-Control-Allow-Origin']).toBe('https://main.d123456789.amplifyapp.com');
+      expect(res.headers['Access-Control-Allow-Origin']).toBe(PROD_ORIGIN);
       expect(res.headers['Vary']).toBe('Origin');
     });
 
@@ -146,12 +226,12 @@ describe('Tallyfold Production API Proxy Handler', () => {
       const event = {
         httpMethod: 'OPTIONS',
         rawPath: '/api/expenses',
-        headers: { origin: 'https://main.d123456789.amplifyapp.com' }
+        headers: { origin: PROD_ORIGIN }
       };
 
       const res = await handler(event);
       expect(res.statusCode).toBe(204);
-      expect(res.headers['Access-Control-Allow-Origin']).toBe('https://main.d123456789.amplifyapp.com');
+      expect(res.headers['Access-Control-Allow-Origin']).toBe(PROD_ORIGIN);
       expect(res.headers['Access-Control-Allow-Methods']).toContain('GET');
       expect(res.headers['Access-Control-Allow-Methods']).toContain('POST');
       expect(res.headers['Access-Control-Allow-Headers']).toContain('Content-Type');
@@ -194,7 +274,7 @@ describe('Tallyfold Production API Proxy Handler', () => {
       const event = {
         httpMethod: 'GET',
         rawPath: '/api/expenses',
-        headers: { origin: 'https://main.d123456789.amplifyapp.com' }
+        headers: { origin: PROD_ORIGIN }
       };
 
       const res = await handler(event);
@@ -215,7 +295,7 @@ describe('Tallyfold Production API Proxy Handler', () => {
         httpMethod: 'GET',
         rawPath: '/api/expenses',
         headers: {
-          origin: 'https://main.d123456789.amplifyapp.com',
+          origin: PROD_ORIGIN,
           'x-proxy-secret': 'super-secret-proxy-token'
         }
       };
@@ -243,7 +323,7 @@ describe('Tallyfold Production API Proxy Handler', () => {
         httpMethod: 'GET',
         path: '/api/expenses',
         queryStringParameters: { userId: 'alice' },
-        headers: { origin: 'https://main.d123456789.amplifyapp.com' }
+        headers: { origin: PROD_ORIGIN }
       };
 
       const res = await handler(event);
@@ -272,7 +352,7 @@ describe('Tallyfold Production API Proxy Handler', () => {
       const event = {
         httpMethod: 'POST',
         rawPath: '/api/upload',
-        headers: { origin: 'https://main.d123456789.amplifyapp.com' },
+        headers: { origin: PROD_ORIGIN },
         body: payload
       };
 
@@ -314,7 +394,7 @@ describe('Tallyfold Production API Proxy Handler', () => {
       const event = {
         httpMethod: 'POST',
         rawPath: '/api/review',
-        headers: { origin: 'https://main.d123456789.amplifyapp.com' },
+        headers: { origin: PROD_ORIGIN },
         body: rawInputBody
       };
 
@@ -337,7 +417,7 @@ describe('Tallyfold Production API Proxy Handler', () => {
       const event = {
         httpMethod: 'GET',
         rawPath: '/api/expenses',
-        headers: { origin: 'https://main.d123456789.amplifyapp.com' }
+        headers: { origin: PROD_ORIGIN }
       };
 
       const res = await handler(event);
@@ -362,6 +442,41 @@ describe('Tallyfold Production API Proxy Handler', () => {
       // SAM / CloudFormation rejects OPTIONS in FunctionUrlConfig.Cors.AllowMethods
       expect(templateContent).not.toMatch(/AllowMethods:[\s\S]*?-\s*OPTIONS/);
       expect(templateContent).toMatch(/AllowMethods:\s*\n\s*-\s*GET\s*\n\s*-\s*POST/);
+    });
+
+    it('defaults AllowedOrigin to production Amplify origin', () => {
+      const templatePath = path.resolve(__dirname, 'template.yaml');
+      const templateContent = fs.readFileSync(templatePath, 'utf8');
+
+      expect(templateContent).toContain("Default: 'https://main.d7hymcw027vmv.amplifyapp.com'");
+    });
+
+    it('does not define ApiKey or ReviewToken as CloudFormation parameters', () => {
+      const templatePath = path.resolve(__dirname, 'template.yaml');
+      const templateContent = fs.readFileSync(templatePath, 'utf8');
+
+      // Ensure raw secrets are not defined as template parameters
+      expect(templateContent).not.toMatch(/^\s*ApiKey:\s*$/m);
+      expect(templateContent).not.toMatch(/^\s*ReviewToken:\s*$/m);
+
+      // Ensures non-secret parameter names are used instead
+      expect(templateContent).toContain('ApiKeyParameterName:');
+      expect(templateContent).toContain("Default: '/expense/proxy/api_key'");
+      expect(templateContent).toContain('ReviewTokenParameterName:');
+      expect(templateContent).toContain("Default: '/expense/proxy/review_token'");
+    });
+
+    it('restricts SSM permissions to ssm:GetParameter on the two specific parameter ARNs in eu-north-1', () => {
+      const templatePath = path.resolve(__dirname, 'template.yaml');
+      const templateContent = fs.readFileSync(templatePath, 'utf8');
+
+      expect(templateContent).toContain('Action:\n                - ssm:GetParameter');
+      expect(templateContent).toContain("!Sub 'arn:aws:ssm:eu-north-1:${AWS::AccountId}:parameter/expense/proxy/api_key'");
+      expect(templateContent).toContain("!Sub 'arn:aws:ssm:eu-north-1:${AWS::AccountId}:parameter/expense/proxy/review_token'");
+
+      // Verify no broad wildcard SSM permissions
+      expect(templateContent).not.toContain('ssm:*');
+      expect(templateContent).not.toContain('parameter/*');
     });
   });
 });
