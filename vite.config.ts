@@ -29,21 +29,8 @@ function gateway(env: Record<string, string>): Plugin {
             'x-api-key': env.API_KEY || '',
           };
 
-          if (isReview) {
-            if (env.REVIEW_TOKEN) {
-              headers['x-review-token'] = env.REVIEW_TOKEN;
-            }
-            if (body) {
-              try {
-                const parsed = JSON.parse(body);
-                if (env.REVIEW_TOKEN && !parsed.reviewToken) {
-                  parsed.reviewToken = env.REVIEW_TOKEN;
-                }
-                body = JSON.stringify(parsed);
-              } catch {
-                // Keep original body if not JSON
-              }
-            }
+          if (isReview && env.REVIEW_TOKEN) {
+            headers['x-review-token'] = env.REVIEW_TOKEN;
           }
 
           const r = await fetch(targetUrl, {
