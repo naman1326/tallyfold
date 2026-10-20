@@ -232,6 +232,7 @@ tallyfold/
 │   ├── handler.js             # AWS Lambda production proxy handler
 │   ├── server.js              # Standalone Node.js proxy server
 │   ├── template.yaml          # AWS CloudFormation / SAM deployment template
+│   ├── package.json           # Lambda dependencies (@aws-sdk/client-ssm)
 │   └── proxy.test.ts          # Proxy unit tests (stripping, headers, review adaptation)
 ├── public/
 │   ├── favicon.svg            # Apple squircle vector brand icon

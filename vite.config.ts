@@ -54,5 +54,8 @@ function gateway(env: Record<string, string>): Plugin {
 
 export default defineConfig(({ mode }) => ({
   plugins: [react(), gateway(loadEnv(mode, process.cwd(), ''))],
-  test: { environment: 'node' },
+  test: {
+    environment: 'node',
+    exclude: ['node_modules/**', 'dist/**', '.aws-sam/**'],
+  },
 }));

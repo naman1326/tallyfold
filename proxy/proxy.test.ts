@@ -479,4 +479,21 @@ describe('Tallyfold Production API Proxy Handler', () => {
       expect(templateContent).not.toContain('parameter/*');
     });
   });
+
+  describe('Lambda Packaging & Dependencies (proxy/package.json)', () => {
+    it('defines a dedicated package.json in proxy/ with @aws-sdk/client-ssm dependency', () => {
+      const pkgPath = path.resolve(__dirname, 'package.json');
+      expect(fs.existsSync(pkgPath)).toBe(true);
+
+      const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+      expect(pkg.type).toBe('module');
+      expect(pkg.dependencies).toBeDefined();
+      expect(pkg.dependencies['@aws-sdk/client-ssm']).toBeDefined();
+    });
+
+    it('has a matching package-lock.json in proxy/ for reproducible sam build', () => {
+      const lockPath = path.resolve(__dirname, 'package-lock.json');
+      expect(fs.existsSync(lockPath)).toBe(true);
+    });
+  });
 });
