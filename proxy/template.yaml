@@ -31,7 +31,7 @@ Resources:
     Properties:
       FunctionName: tallyfold-api-proxy
       Handler: handler.handler
-      Runtime: nodejs20.x
+      Runtime: nodejs24.x
       CodeUri: .
       MemorySize: 256
       Timeout: 15
@@ -48,10 +48,11 @@ Resources:
         Cors:
           AllowOrigins:
             - !Ref AllowedOrigin
+          # Note: SAM and CloudFormation reject 'OPTIONS' in AllowMethods.
+          # Function URLs handle preflight OPTIONS automatically based on configured methods/origins.
           AllowMethods:
             - GET
             - POST
-            - OPTIONS
           AllowHeaders:
             - Content-Type
             - Authorization

@@ -1,5 +1,11 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { handler } from './handler.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 describe('Tallyfold Production API Proxy Handler', () => {
   const originalFetch = globalThis.fetch;
@@ -134,6 +140,24 @@ describe('Tallyfold Production API Proxy Handler', () => {
       expect(res.statusCode).toBe(204);
       expect(res.headers['Access-Control-Allow-Origin']).toBe('https://main.d123456789.amplifyapp.com');
       expect(res.headers['Vary']).toBe('Origin');
+    });
+
+    it('sets preflight CORS headers including allowed methods and headers on OPTIONS', async () => {
+      const event = {
+        httpMethod: 'OPTIONS',
+        rawPath: '/api/expenses',
+        headers: { origin: 'https://main.d123456789.amplifyapp.com' }
+      };
+
+      const res = await handler(event);
+      expect(res.statusCode).toBe(204);
+      expect(res.headers['Access-Control-Allow-Origin']).toBe('https://main.d123456789.amplifyapp.com');
+      expect(res.headers['Access-Control-Allow-Methods']).toContain('GET');
+      expect(res.headers['Access-Control-Allow-Methods']).toContain('POST');
+      expect(res.headers['Access-Control-Allow-Headers']).toContain('Content-Type');
+      expect(res.headers['Access-Control-Allow-Headers']).toContain('x-api-key');
+      expect(res.headers['Access-Control-Allow-Headers']).toContain('x-review-token');
+      expect(res.headers['Access-Control-Max-Age']).toBe('86400');
     });
 
     it('rejects OPTIONS preflight from unauthorized origin with 403', async () => {
@@ -324,6 +348,20 @@ describe('Tallyfold Production API Proxy Handler', () => {
       // Ensure secrets are not in error output
       expect(res.body).not.toContain('test-secret-api-key');
       expect(res.body).not.toContain('test-secret-review-token');
+    });
+  });
+
+  describe('SAM Template Configuration (proxy/template.yaml)', () => {
+    it('specifies nodejs24.x runtime and valid AllowMethods without OPTIONS', () => {
+      const templatePath = path.resolve(__dirname, 'template.yaml');
+      const templateContent = fs.readFileSync(templatePath, 'utf8');
+
+      expect(templateContent).toContain('Runtime: nodejs24.x');
+      expect(templateContent).not.toContain('Runtime: nodejs20.x');
+
+      // SAM / CloudFormation rejects OPTIONS in FunctionUrlConfig.Cors.AllowMethods
+      expect(templateContent).not.toMatch(/AllowMethods:[\s\S]*?-\s*OPTIONS/);
+      expect(templateContent).toMatch(/AllowMethods:\s*\n\s*-\s*GET\s*\n\s*-\s*POST/);
     });
   });
 });

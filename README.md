@@ -90,12 +90,12 @@ flowchart TD
   - API Gateway requires `x-api-key` for endpoints like `GET /expenses`, and the review Lambda requires `x-review-token` for `POST /review`.
   - Static hosting (AWS Amplify) cannot inject custom server-side request headers or modify request bodies on reverse-proxy rules.
 - **How It Works**:
-  - A lightweight Lambda handler ([proxy/handler.js](./proxy/handler.js)) with Function URL or API Gateway HTTP API.
+  - A lightweight Lambda handler ([proxy/handler.js](./proxy/handler.js)) running on `nodejs24.x` with Function URL or API Gateway HTTP API.
   - Receives requests at `/api/expenses`, `/api/upload`, and `/api/review`.
   - Strips the `/api` prefix exactly once and preserves the `/prod` stage path.
   - Injects `x-api-key: API_KEY` server-side.
-  - Injects `x-review-token: REVIEW_TOKEN` header (and merges `reviewToken` in JSON body) on `POST /review`.
-  - Handles CORS preflight (`OPTIONS` $\to$ 204 No Content).
+  - Injects `x-review-token: REVIEW_TOKEN` header server-side on `POST /review` without mutating client payloads.
+  - Handles CORS preflight (`OPTIONS` $\to$ 204 No Content) natively at Function URL and handler levels.
 
 ### 3. AWS Backend Pipeline & QuickBooks Online
 - **Amazon S3**: Stores raw receipt images. Client performs direct browser-to-S3 upload using the presigned URL returned by `POST /api/upload`.
