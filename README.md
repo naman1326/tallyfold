@@ -213,12 +213,18 @@ npm run dev
 ### Run Tests & Production Build
 
 ```bash
-# Run all unit tests (lib, client error handling, proxy forwarding)
+# Run all unit tests (lib, client error handling, proxy forwarding, auth)
 npm test
 
 # Type-check and create production bundle in dist/
 npm run build
 ```
+
+### Portal Access Credentials
+
+The web application includes an Apple-themed authentication portal:
+- **Username**: `user`
+- **Password**: `qwer1234`
 
 ---
 
@@ -241,8 +247,11 @@ tallyfold/
 │   ├── api.ts                 # Backend HTTP client with descriptive error handling
 │   ├── api.test.ts            # Client error handling tests (404, 403, CORS, network)
 │   ├── App.tsx                # Application shell, routing & views
+│   ├── auth.ts / auth.tsx     # Authentication context, session management & route guard
+│   ├── auth.test.ts           # Authentication logic unit tests
 │   ├── lib.ts                 # Formatting, sorting, CSV export & review rules
 │   ├── lib.test.ts            # Unit tests for normalization & validation
+│   ├── LoginPage.tsx          # Apple fluid glassmorphic authentication screen
 │   ├── main.tsx               # React DOM bootstrap
 │   ├── styles.css             # Apple Fluid Design System & CSS variables
 │   ├── theme.tsx              # Theme provider (Light / Dark / System)

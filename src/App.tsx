@@ -4,12 +4,14 @@ import {
   BookOpen, ClipboardCheck, LayoutDashboard, RefreshCw, Settings as Cog, Upload as UpIcon,
   Sun, Moon, Laptop, ArrowUpDown, ArrowUp, ArrowDown, Search, X, Download, Copy, Check,
   CheckCircle2, AlertCircle, AlertTriangle, XCircle, DollarSign, Receipt, Clock, ExternalLink,
-  RotateCcw, ChevronLeft, ChevronRight, Eye, ShieldCheck, FileText, Sparkles
+  RotateCcw, ChevronLeft, ChevronRight, Eye, ShieldCheck, FileText, Sparkles, LogOut
 } from 'lucide-react';
 import { blockers, Expense, money, sortExpenses, SortDirection, SortField, toCsv } from './lib';
 import * as api from './api';
 import { ThemeProvider, useTheme, type Theme } from './theme';
 import { ToastProvider, useToast } from './toast';
+import { AuthProvider, RequireAuth, useAuth } from './auth';
+import { LoginPage } from './LoginPage';
 
 const uid = () => localStorage.getItem('userId') || 'demo-user';
 const STATUSES = ['NEEDS_REVIEW', 'PENDING', 'SYNCING', 'SYNCED', 'FAILED'];
@@ -1416,123 +1418,174 @@ const NAV: [string, string, (counts: { review: number; failed: number }) => Reac
   ['/settings', 'Settings', () => null, <Cog size={18} />]
 ];
 
-export default function App() {
+function MainShell() {
   const x = useExpenses();
+  const { user, logout } = useAuth();
+  const { success } = useToast();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    success('Signed out successfully');
+    navigate('/login', { replace: true });
+  };
 
   const counts = useMemo(() => ({
     review: x.rows.filter(r => r.syncStatus === 'NEEDS_REVIEW').length,
     failed: x.rows.filter(r => r.syncStatus === 'FAILED').length
   }), [x.rows]);
 
+  const activeUser = user || uid();
+
+  return (
+    <>
+      <header className="top">
+        <Logo />
+
+        <div className="top-actions">
+          <span className="env">
+            <span className="env-dot" />
+            QuickBooks Sandbox
+          </span>
+
+          <ThemeToggleButton />
+
+          <Link to="/upload" className="btn primary btn-sm" style={{ textDecoration: 'none' }}>
+            <UpIcon size={14} /> Upload
+          </Link>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="btn-signout"
+            title="Sign Out of Tallyfold"
+            aria-label="Sign Out"
+          >
+            <LogOut size={13} /> Sign Out
+          </button>
+        </div>
+      </header>
+
+      {api.DEMO && (
+        <div className="demo-banner">
+          <span>Demo Mode</span>
+          Displaying built-in sample expenses (backend calls disabled).
+        </div>
+      )}
+
+      <div className="shell">
+        <nav aria-label="Main Navigation">
+          <div className="nav-links">
+            <div className="nav-section-label">Navigation</div>
+            {NAV.map(([to, label, badgeFn, icon]) => (
+              <NavLink key={to} to={to} end={to === '/'}>
+                {icon}
+                <span>{label}</span>
+                {badgeFn(counts)}
+              </NavLink>
+            ))}
+          </div>
+
+          <div className="nav-footer">
+            <div className="user-pill">
+              <div className="user-avatar">
+                {activeUser.charAt(0).toUpperCase()}
+              </div>
+              <div className="user-meta" style={{ flex: 1, minWidth: 0 }}>
+                <span className="user-name">{activeUser}</span>
+                <span className="user-role">Sandbox Auditor</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="btn-signout"
+                title="Sign Out"
+                aria-label="Sign Out"
+                style={{ border: 'none', padding: '4px' }}
+              >
+                <LogOut size={14} />
+              </button>
+            </div>
+          </div>
+        </nav>
+
+        <main>
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/upload" element={<UploadPage />} />
+            <Route
+              path="/review"
+              element={
+                <Page
+                  title="Review receipts"
+                  status="NEEDS_REVIEW"
+                  cols={['merchant', 'date', 'amount', 'category', 'conf', 'pay', 'reason', 'status']}
+                  approve
+                  help={
+                    <p style={{ color: 'var(--text-muted)', marginBottom: '1.25rem', fontSize: '0.875rem' }}>
+                      Inspect OCR extracted receipt values. Verify compliance with sandbox eligibility rules before syncing to QuickBooks.
+                    </p>
+                  }
+                />
+              }
+            />
+            <Route
+              path="/expenses"
+              element={
+                <Page
+                  title="All expenses"
+                  csv
+                  cols={['merchant', 'date', 'amount', 'category', 'pay', 'id', 'status', 'qbo']}
+                  help={
+                    <p style={{ color: 'var(--text-muted)', marginBottom: '1.25rem', fontSize: '0.875rem' }}>
+                      Complete history of scanned receipts and synchronization records.
+                    </p>
+                  }
+                />
+              }
+            />
+            <Route
+              path="/sync"
+              element={
+                <Page
+                  title="QuickBooks sync status"
+                  statuses={['PENDING', 'SYNCING', 'SYNCED', 'FAILED']}
+                  cols={['merchant', 'date', 'amount', 'id', 'status', 'qbo', 'err']}
+                  help={
+                    <p style={{ color: 'var(--text-muted)', marginBottom: '1.25rem', fontSize: '0.875rem' }}>
+                      Real-time status of asynchronous QuickBooks Sandbox synchronization. Synced transactions will be registered under Sandbox Expenses.
+                    </p>
+                  }
+                />
+              }
+            />
+            <Route path="/settings" element={<SettingsPage />} />
+          </Routes>
+        </main>
+      </div>
+    </>
+  );
+}
+
+export default function App() {
   return (
     <ThemeProvider>
       <ToastProvider>
-        <BrowserRouter>
-          <header className="top">
-            <Logo />
-
-            <div className="top-actions">
-              <span className="env">
-                <span className="env-dot" />
-                QuickBooks Sandbox
-              </span>
-
-              <ThemeToggleButton />
-
-              <Link to="/upload" className="btn primary btn-sm" style={{ textDecoration: 'none' }}>
-                <UpIcon size={14} /> Upload
-              </Link>
-            </div>
-          </header>
-
-          {api.DEMO && (
-            <div className="demo-banner">
-              <span>Demo Mode</span>
-              Displaying built-in sample expenses (backend calls disabled).
-            </div>
-          )}
-
-          <div className="shell">
-            <nav aria-label="Main Navigation">
-              <div className="nav-links">
-                <div className="nav-section-label">Navigation</div>
-                {NAV.map(([to, label, badgeFn, icon]) => (
-                  <NavLink key={to} to={to} end={to === '/'}>
-                    {icon}
-                    <span>{label}</span>
-                    {badgeFn(counts)}
-                  </NavLink>
-                ))}
-              </div>
-
-              <div className="nav-footer">
-                <div className="user-pill">
-                  <div className="user-avatar">
-                    {uid().charAt(0).toUpperCase()}
-                  </div>
-                  <div className="user-meta">
-                    <span className="user-name">{uid()}</span>
-                    <span className="user-role">Sandbox User</span>
-                  </div>
-                </div>
-              </div>
-            </nav>
-
-            <main>
-              <Routes>
-                <Route path="/" element={<Dashboard />} />
-                <Route path="/upload" element={<UploadPage />} />
-                <Route
-                  path="/review"
-                  element={
-                    <Page
-                      title="Review receipts"
-                      status="NEEDS_REVIEW"
-                      cols={['merchant', 'date', 'amount', 'category', 'conf', 'pay', 'reason', 'status']}
-                      approve
-                      help={
-                        <p style={{ color: 'var(--text-muted)', marginBottom: '1.25rem', fontSize: '0.875rem' }}>
-                          Inspect OCR extracted receipt values. Verify compliance with sandbox eligibility rules before syncing to QuickBooks.
-                        </p>
-                      }
-                    />
-                  }
-                />
-                <Route
-                  path="/expenses"
-                  element={
-                    <Page
-                      title="All expenses"
-                      csv
-                      cols={['merchant', 'date', 'amount', 'category', 'pay', 'id', 'status', 'qbo']}
-                      help={
-                        <p style={{ color: 'var(--text-muted)', marginBottom: '1.25rem', fontSize: '0.875rem' }}>
-                          Complete history of scanned receipts and synchronization records.
-                        </p>
-                      }
-                    />
-                  }
-                />
-                <Route
-                  path="/sync"
-                  element={
-                    <Page
-                      title="QuickBooks sync status"
-                      statuses={['PENDING', 'SYNCING', 'SYNCED', 'FAILED']}
-                      cols={['merchant', 'date', 'amount', 'id', 'status', 'qbo', 'err']}
-                      help={
-                        <p style={{ color: 'var(--text-muted)', marginBottom: '1.25rem', fontSize: '0.875rem' }}>
-                          Real-time status of asynchronous QuickBooks Sandbox synchronization. Synced transactions will be registered under Sandbox Expenses.
-                        </p>
-                      }
-                    />
-                  }
-                />
-                <Route path="/settings" element={<SettingsPage />} />
-              </Routes>
-            </main>
-          </div>
-        </BrowserRouter>
+        <AuthProvider>
+          <BrowserRouter>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route
+                path="/*"
+                element={
+                  <RequireAuth>
+                    <MainShell />
+                  </RequireAuth>
+                }
+              />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
       </ToastProvider>
     </ThemeProvider>
   );
