@@ -1,0 +1,56 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Tallyfold Secure Production API Proxy for AWS Amplify Hosting
+
+Parameters:
+  ApiBase:
+    Type: String
+    Default: 'https://vec4q0sqc9.execute-api.eu-north-1.amazonaws.com/prod'
+    Description: Base URL of the existing API Gateway REST API (including /prod stage).
+  ApiKey:
+    Type: String
+    NoEcho: true
+    Description: Secret API key for API Gateway (injected as x-api-key).
+  ReviewToken:
+    Type: String
+    NoEcho: true
+    Description: Secret review token for POST /review approvals (injected as x-review-token).
+
+Resources:
+  TallyfoldApiProxyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: tallyfold-api-proxy
+      Handler: handler.handler
+      Runtime: nodejs20.x
+      CodeUri: .
+      MemorySize: 256
+      Timeout: 15
+      FunctionUrlConfig:
+        AuthType: NONE
+        Cors:
+          AllowOrigins:
+            - '*'
+          AllowMethods:
+            - GET
+            - POST
+            - PUT
+            - DELETE
+            - OPTIONS
+          AllowHeaders:
+            - Content-Type
+            - Authorization
+            - x-api-key
+            - x-review-token
+            - x-amz-meta-*
+          MaxAge: 86400
+      Environment:
+        Variables:
+          API_BASE: !Ref ApiBase
+          API_KEY: !Ref ApiKey
+          REVIEW_TOKEN: !Ref ReviewToken
+
+Outputs:
+  ProxyFunctionUrl:
+    Description: Public Lambda Function URL to target in Amplify Rewrites or VITE_API_BASE
+    Value: !GetAtt TallyfoldApiProxyFunctionUrl.FunctionUrl

@@ -17,7 +17,7 @@
 
 ## Architecture Overview
 
-Tallyfold operates across three tightly decoupled tiers: a modern fluid frontend, a serverless AWS receipt processing backend, and Intuit QuickBooks Online.
+Tallyfold operates across three decoupled tiers: a modern fluid frontend, a serverless AWS receipt processing backend, and Intuit QuickBooks Online.
 
 <div align="center">
   <img src="./docs/architecture.png" alt="Tallyfold 3-Tier Architecture Diagram" width="800" style="border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);" />
@@ -27,14 +27,18 @@ Tallyfold operates across three tightly decoupled tiers: a modern fluid frontend
 
 ```mermaid
 flowchart TD
-    subgraph Tier1["🖥️ 1. Frontend — Review Screen"]
+    subgraph Tier1["🖥️ 1. Frontend — Review Screen (AWS Amplify Hosting)"]
         UI_Dash["Dashboard &amp; Metrics<br/>(Spend Breakdown, Category Bars, KPI Cards)"]
         UI_Review["Review Queue &amp; Inspection Sheet<br/>(Live OCR Confidence, Eligibility Checklist)"]
         UI_Upload["AirDrop-style Upload Dropzone<br/>(Step Pipeline &amp; File Validation)"]
     end
 
+    subgraph TierProxy["🛡️ Server-Side Proxy Layer"]
+        Proxy["Amplify 200 Rewrite / Lambda Proxy<br/>(Strips /api, injects x-api-key &amp; x-review-token)"]
+    end
+
     subgraph Tier2["🗄️ 2. AWS Backend Pipeline"]
-        GW["Dev Proxy Gateway / CloudFront<br/>(Injects API_KEY &amp; REVIEW_TOKEN)"]
+        APIGW["Amazon API Gateway REST API (/prod)<br/>(GET /expenses · POST /upload · POST /review)"]
         S3["Amazon S3 Private Bucket<br/>(Presigned PUT with x-amz-meta-* binding)"]
         OCR["AWS Lambda + Tesseract OCR<br/>(Extracts Merchant, Date, Total, Tax, Category)"]
         DDB["Amazon DynamoDB<br/>(Key: userId / SK: date#receiptId · State Machine)"]
@@ -45,125 +49,141 @@ flowchart TD
         QBO_Ledger["Sandbox Expense Register<br/>(Account 35 · Checking Ledger)"]
     end
 
-    UI_Upload -->|1. Request Presigned URL| GW
-    GW -->|POST /upload| S3
-    S3 -->|2. S3 ObjectCreated Trigger| OCR
-    OCR -->|3. Store Extracted Data (NEEDS_REVIEW)| DDB
-    UI_Review <-->|4. GET /expenses &amp; POST /review| GW
-    GW -->|5. Validate Review Token &amp; Dispatch| DDB
-    DDB -->|6. Async Ledger Sync (PENDING → SYNCED)| QBO_API
-    QBO_API -->|7. Verified Expense Entry| QBO_Ledger
+    UI_Review -->|1. GET /api/expenses &amp; POST /api/review| Proxy
+    UI_Upload -->|2. POST /api/upload| Proxy
+    Proxy -->|3. Forward with x-api-key &amp; x-review-token| APIGW
+    APIGW -->|4. Generate Presigned S3 PUT URL| S3
+    UI_Upload -.->|5. Direct Browser-to-S3 Upload (Presigned)| S3
+    S3 -->|6. S3 ObjectCreated Trigger| OCR
+    OCR -->|7. Store Extracted Data (NEEDS_REVIEW)| DDB
+    APIGW -->|8. Validate Review Token &amp; Dispatch| DDB
+    DDB -->|9. Async Ledger Sync (PENDING → SYNCED)| QBO_API
+    QBO_API -->|10. Verified Expense Entry| QBO_Ledger
 
     classDef screen fill:#18181b,stroke:#027a75,stroke-width:2px,color:#f4f4f5;
+    classDef proxy fill:#18181b,stroke:#8b5cf6,stroke-width:2px,color:#f4f4f5;
     classDef aws fill:#18181b,stroke:#f59e0b,stroke-width:2px,color:#f4f4f5;
     classDef qbo fill:#18181b,stroke:#22c55e,stroke-width:2px,color:#f4f4f5;
     class Tier1 screen;
+    class TierProxy proxy;
     class Tier2 aws;
     class Tier3 qbo;
 ```
 
 ---
 
-## The Three Tiers Explained
+## The Three Tiers & Proxy Architecture
 
-### 1. Frontend — Review & Inspection Screen
+### 1. Frontend — Review & Inspection Screen (AWS Amplify Hosting)
 - **Role**: Client interface where finance teams review, audit, and approve receipts before they hit accounting books.
 - **Key Capabilities**:
   - **Live OCR Confidence Gauge**: Color-coded meter indicating document readability and extraction certainty.
   - **Eligibility Verification Checklist**: Inline validation confirming status is `NEEDS_REVIEW`, confidence is $\ge 75\%$, currency is `USD`, account is `Checking 35`, and category is approved.
   - **Slide-over Sheet Drawer**: Non-modal inspection sheet with keyboard accessibility (`Esc` dismiss) and smooth Apple spring animation.
   - **Multi-attribute Filtering & Sorting**: Real-time text search, quick status chips, date range filtering, column-based sorting, and instant CSV export.
-  - **Zero-secret Client Model**: Never stores `API_KEY` or `REVIEW_TOKEN` in client code or bundle.
+  - **Zero-secret Client Model**: Never stores `API_KEY` or `REVIEW_TOKEN` in client code, bundle, or `VITE_` variables.
 
-### 2. AWS Backend Pipeline
-- **Role**: Ingestion, OCR parsing, persistent state storage, and rule enforcement.
-- **Key Services**:
-  - **Amazon S3**: Stores raw receipt images in a private bucket. Uploads require exact `Content-Type` and `x-amz-meta-*` headers bound to presigned URLs.
-  - **AWS Lambda + Tesseract OCR**: Automatically triggered upon S3 upload to parse merchant name, receipt date, subtotal, tax, total amount, and categorized spend.
-  - **Amazon DynamoDB**: Stores receipt state records partitioned by `userId`. State machine progression:
-    $$\text{NEEDS\_REVIEW} \longrightarrow \text{PENDING} \longrightarrow \text{SYNCING} \longrightarrow \text{SYNCED} \quad (\text{or } \text{FAILED})$$
-  - **Review Authority**: The backend Lambda is the single source of truth for review eligibility; frontend checklist mirrors the policy to provide immediate feedback.
+### 2. Secure Production Proxy Layer (`/proxy`)
+- **Role**: Bridges the static Amplify frontend with the secured AWS API Gateway REST API.
+- **Why It Is Needed**:
+  - `vite.config.ts` dev gateway runs only in local development (`vite`) and is omitted from static production builds (`dist/`).
+  - API Gateway requires `x-api-key` for endpoints like `GET /expenses`, and the review Lambda requires `x-review-token` for `POST /review`.
+  - Static hosting (AWS Amplify) cannot inject custom server-side request headers or modify request bodies on reverse-proxy rules.
+- **How It Works**:
+  - A lightweight Lambda handler ([proxy/handler.js](./proxy/handler.js)) with Function URL or API Gateway HTTP API.
+  - Receives requests at `/api/expenses`, `/api/upload`, and `/api/review`.
+  - Strips the `/api` prefix exactly once and preserves the `/prod` stage path.
+  - Injects `x-api-key: API_KEY` server-side.
+  - Injects `x-review-token: REVIEW_TOKEN` header (and merges `reviewToken` in JSON body) on `POST /review`.
+  - Handles CORS preflight (`OPTIONS` $\to$ 204 No Content).
 
-### 3. QuickBooks Online (Sandbox)
-- **Role**: General ledger and accounting sandbox environment.
-- **Key Flow**:
-  - Once an expense is approved, the backend schedules an asynchronous sync job.
-  - Generates verified transaction records under the Sandbox company with linked payment accounts and expense categories.
-  - Reports transaction ID (`qboId`) and synchronization status back to DynamoDB.
+### 3. AWS Backend Pipeline & QuickBooks Online
+- **Amazon S3**: Stores raw receipt images. Client performs direct browser-to-S3 upload using the presigned URL returned by `POST /api/upload`.
+- **AWS Lambda + Tesseract OCR**: Automatically parses receipt details into DynamoDB.
+- **Amazon DynamoDB**: Maintains receipt state:
+  $$\text{NEEDS\_REVIEW} \longrightarrow \text{PENDING} \longrightarrow \text{SYNCING} \longrightarrow \text{SYNCED} \quad (\text{or } \text{FAILED})$$
+- **QuickBooks Online**: Receives approved expenses and registers them in the Sandbox general ledger.
+
+---
+
+## AWS Amplify Production Setup
+
+### Step 1: Deploy the Proxy Function
+
+Deploy the serverless proxy via the included SAM / CloudFormation template ([proxy/template.yaml](./proxy/template.yaml)):
+
+```bash
+# Using AWS SAM CLI:
+sam deploy --template-file proxy/template.yaml \
+  --stack-name tallyfold-proxy \
+  --capabilities CAPABILITY_IAM \
+  --parameter-overrides \
+    ApiBase=https://vec4q0sqc9.execute-api.eu-north-1.amazonaws.com/prod \
+    ApiKey=YOUR_API_KEY \
+    ReviewToken=YOUR_REVIEW_TOKEN
+```
+
+This returns a `ProxyFunctionUrl` (e.g. `https://<unique-id>.lambda-url.eu-north-1.on.aws/`).
+
+### Step 2: Configure Amplify Hosting Rewrites
+
+In the **AWS Amplify Console**:
+1. Navigate to **Hosting** &rarr; **Rewrites and redirects**.
+2. Click **Manage redirects** and enter the following rules (ensure the `/api/<*>` rule is **above** the SPA catch-all rule):
+
+```json
+[
+  {
+    "source": "/api/<*>",
+    "target": "https://<unique-id>.lambda-url.eu-north-1.on.aws/api/<*>",
+    "status": "200",
+    "condition": null
+  },
+  {
+    "source": "</^[^.]+$|\\.(?!(css|gif|ico|jpg|js|png|txt|svg|woff|woff2|ttf|map|json)$)([^.]+$)+>",
+    "target": "/index.html",
+    "status": "200",
+    "condition": null
+  }
+]
+```
+
+*Result*: The client browser calls `/api/*` on the same domain, Amplify proxies requests to the Lambda function, and the function injects authorization credentials before forwarding to API Gateway.
 
 ---
 
 ## Apple Design System & UI/UX
 
-The interface was redesigned from the ground up according to the **Apple Design Guidelines** ([SKILL.md](./SKILL.md)):
+The interface was built according to the **Apple Design Guidelines** ([SKILL.md](./SKILL.md)):
 
 - **Translucent Materials & Depth (§12)**:
   - Header, slide-over drawer, and notifications use `backdrop-filter: blur(24px) saturate(190%)` frosted glass styling.
   - Hairline borders (`rgba(0, 0, 0, 0.08)` / `rgba(255, 255, 255, 0.09)`) and layered ambient elevation shadows.
 - **Fluid Motion & Latency Elimination (§1, §3, §4)**:
   - Immediate `:active` tactile downstate (`transform: scale(0.965); transition: transform 90ms ease-out;`).
-  - Critically damped spring physics (`cubic-bezier(0.25, 1, 0.5, 1)`) for UI elements and slight bounce for drawers and notifications.
+  - Critically damped spring physics (`cubic-bezier(0.25, 1, 0.5, 1)`).
   - Sheet grab-handle indicator at the top of the detail drawer for spatial familiarity.
 - **Optical Typography (§15)**:
   - Native system typography stack (`-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text"`).
   - Negative letter-tracking on display headings, positive tracking on micro badges, and `tabular-nums` on monetary figures.
-- **Apple Segmented Controls & Appearance Selector (§10, §14)**:
-  - Apple-style 3-state segmented theme switcher (Light / Dark / Auto) in the navigation bar.
-  - Settings page featuring interactive macOS mini window previews with traffic light controls (close, minimize, zoom dots) and active checkmarks.
 - **Accessibility & Adaptive Preferences (§14)**:
-  - Full support for `prefers-reduced-motion` (instant fades, disabled springs).
-  - Support for `prefers-reduced-transparency` (solid surfaces, disabled blurs).
-  - Support for `prefers-contrast` (high-contrast borders).
+  - Full support for `prefers-reduced-motion`, `prefers-reduced-transparency`, and `prefers-contrast`.
 
 ---
 
-## Status State Machine
-
-| Status | Visual Indicator | Meaning | Next Actions |
-|---|---|---|---|
-| `NEEDS_REVIEW` | 🟡 Amber Pill | Receipt OCR complete; awaiting human verification | Review in Slide-over Drawer &rarr; Approve |
-| `PENDING` | 🔵 Sky Blue Pill | Approved by user; queued for QuickBooks sandbox sync | Automatically picked up by background worker |
-| `SYNCING` | 🟣 Indigo Pill | Currently communicating with QuickBooks Online API | Wait for completion response |
-| `SYNCED` | 🟢 Mint Green Pill | Successfully posted to QuickBooks Online Sandbox | View QBO ID and verified ledger entry |
-| `FAILED` | 🔴 Coral Red Pill | Synchronization failed due to rule or API error | Inspect sync error details |
-
----
-
-## Quickstart
-
-### Prerequisites
-- Node.js 18+
-- npm 9+
+## Quickstart & Local Development
 
 ### Installation & Run
 
 ```bash
-# 1. Clone repository
-git clone https://github.com/naman1326/tallyfold.git
-cd tallyfold
-
-# 2. Install dependencies
+# 1. Install dependencies
 npm install
 
-# 3. Configure environment
+# 2. Configure environment
 cp .env.example .env
-```
+# Fill in API_KEY and REVIEW_TOKEN in .env
 
-### Environment Configuration (`.env`)
-
-```ini
-# Live AWS API Gateway mode (Default)
-API_BASE_URL=https://your-api-gateway-id.execute-api.us-east-1.amazonaws.com/prod
-API_KEY=your-dev-api-key
-REVIEW_TOKEN=your-secret-review-token
-
-# Or enable built-in offline Demo Mode (No AWS credentials needed)
-VITE_DEMO=true
-```
-
-### Start Development Server
-
-```bash
+# 3. Start development server
 npm run dev
 # Open http://localhost:5173
 ```
@@ -171,7 +191,7 @@ npm run dev
 ### Run Tests & Production Build
 
 ```bash
-# Run unit tests with Vitest
+# Run all unit tests (lib, client error handling, proxy forwarding)
 npm test
 
 # Type-check and create production bundle in dist/
@@ -180,26 +200,23 @@ npm run build
 
 ---
 
-## Security Model & Zero-Secret Architecture
-
-1. **Browser Security**: Neither `API_KEY` nor `REVIEW_TOKEN` is bundled into client JavaScript.
-2. **Local Development Proxy**: `vite.config.ts` runs a dev-only gateway middleware. The browser issues requests to `/api/*`; the Node.js server injects authorization headers before proxying upstream.
-3. **S3 Presigned Signature Binding**: Client PUT operations must match the cryptographic `x-amz-meta-*` headers generated by Lambda, preventing arbitrary file injection or unauthorized bucket writes.
-4. **Production Deployment**: Build static files (`npm run build`) and host behind **CloudFront with Origin Access Control (OAC)** and a private S3 bucket. Forward `/api/*` through an API Gateway or Lambda edge layer that handles real user authentication (e.g. AWS Cognito).
-
----
-
 ## Directory Structure
 
 ```text
 tallyfold/
 ├── docs/
-│   └── architecture.png       # High-resolution 3-tier architecture diagram
+│   └── architecture.png       # 3-tier architecture diagram
+├── proxy/
+│   ├── handler.js             # AWS Lambda production proxy handler
+│   ├── server.js              # Standalone Node.js proxy server
+│   ├── template.yaml          # AWS CloudFormation / SAM deployment template
+│   └── proxy.test.ts          # Proxy unit tests (stripping, headers, review adaptation)
 ├── public/
 │   ├── favicon.svg            # Apple squircle vector brand icon
 │   └── architecture.png
 ├── src/
-│   ├── api.ts                 # Backend HTTP client & demo data fallbacks
+│   ├── api.ts                 # Backend HTTP client with descriptive error handling
+│   ├── api.test.ts            # Client error handling tests (404, 403, CORS, network)
 │   ├── App.tsx                # Application shell, routing & views
 │   ├── lib.ts                 # Formatting, sorting, CSV export & review rules
 │   ├── lib.test.ts            # Unit tests for normalization & validation
