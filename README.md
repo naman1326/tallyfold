@@ -49,16 +49,16 @@ flowchart TD
         QBO_Ledger["Sandbox Expense Register<br/>(Account 35 · Checking Ledger)"]
     end
 
-    UI_Review -->|1. GET /api/expenses &amp; POST /api/review| Proxy
-    UI_Upload -->|2. POST /api/upload| Proxy
-    Proxy -->|3. Forward with x-api-key &amp; x-review-token| APIGW
-    APIGW -->|4. Generate Presigned S3 PUT URL| S3
-    UI_Upload -.->|5. Direct Browser-to-S3 Upload (Presigned)| S3
-    S3 -->|6. S3 ObjectCreated Trigger| OCR
-    OCR -->|7. Store Extracted Data (NEEDS_REVIEW)| DDB
-    APIGW -->|8. Validate Review Token &amp; Dispatch| DDB
-    DDB -->|9. Async Ledger Sync (PENDING → SYNCED)| QBO_API
-    QBO_API -->|10. Verified Expense Entry| QBO_Ledger
+    UI_Review -->|"1. GET /api/expenses &amp; POST /api/review"| Proxy
+    UI_Upload -->|"2. POST /api/upload"| Proxy
+    Proxy -->|"3. Forward with x-api-key &amp; x-review-token"| APIGW
+    APIGW -->|"4. Generate Presigned S3 PUT URL"| S3
+    UI_Upload -.->|"5. Direct Browser-to-S3 Upload (Presigned)"| S3
+    S3 -->|"6. S3 ObjectCreated Trigger"| OCR
+    OCR -->|"7. Store Extracted Data (NEEDS_REVIEW)"| DDB
+    APIGW -->|"8. Validate Review Token &amp; Dispatch"| DDB
+    DDB -->|"9. Async Ledger Sync (PENDING to SYNCED)"| QBO_API
+    QBO_API -->|"10. Verified Expense Entry"| QBO_Ledger
 
     classDef screen fill:#18181b,stroke:#027a75,stroke-width:2px,color:#f4f4f5;
     classDef proxy fill:#18181b,stroke:#8b5cf6,stroke-width:2px,color:#f4f4f5;
@@ -78,7 +78,7 @@ flowchart TD
 - **Role**: Client interface where finance teams review, audit, and approve receipts before they hit accounting books.
 - **Key Capabilities**:
   - **Live OCR Confidence Gauge**: Color-coded meter indicating document readability and extraction certainty.
-  - **Eligibility Verification Checklist**: Inline validation confirming status is `NEEDS_REVIEW`, confidence is $\ge 75\%$, currency is `USD`, account is `Checking 35`, and category is approved.
+  - **Eligibility Verification Checklist**: Inline validation confirming status is `NEEDS_REVIEW`, confidence is ≥ 75%, currency is `USD`, account is `Checking 35`, and category is approved.
   - **Slide-over Sheet Drawer**: Non-modal inspection sheet with keyboard accessibility (`Esc` dismiss) and smooth Apple spring animation.
   - **Multi-attribute Filtering & Sorting**: Real-time text search, quick status chips, date range filtering, column-based sorting, and instant CSV export.
   - **Zero-secret Client Model**: Never stores `API_KEY` or `REVIEW_TOKEN` in client code, bundle, or `VITE_` variables.
@@ -97,14 +97,13 @@ flowchart TD
   - Strips the `/api` prefix exactly once and preserves the `/prod` stage path.
   - Injects `x-api-key` header server-side.
   - Injects `x-review-token` header server-side on `POST /review` without mutating client payloads.
-  - Handles CORS preflight (`OPTIONS` $\to$ 204 No Content) natively at Function URL and handler levels.
+  - Handles CORS preflight (`OPTIONS` → 204 No Content) natively at Function URL and handler levels.
   - **Access Control Note**: CORS origin lockdown defaults to `https://main.d7hymcw027vmv.amplifyapp.com`. CORS provides browser-level domain restrictions for basic abuse prevention; it does not authenticate users (real user authentication requires Amazon Cognito JWT tokens). `PROXY_SECRET` is kept disabled/empty by default because Amplify rewrites cannot inject custom headers.
 
 ### 3. AWS Backend Pipeline & QuickBooks Online
 - **Amazon S3**: Stores raw receipt images. Client performs direct browser-to-S3 upload using the presigned URL returned by `POST /api/upload`.
 - **AWS Lambda + Tesseract OCR**: Automatically parses receipt details into DynamoDB.
-- **Amazon DynamoDB**: Maintains receipt state:
-  $$\text{NEEDS\_REVIEW} \longrightarrow \text{PENDING} \longrightarrow \text{SYNCING} \longrightarrow \text{SYNCED} \quad (\text{or } \text{FAILED})$$
+- **Amazon DynamoDB**: Maintains receipt state: `NEEDS_REVIEW` → `PENDING` → `SYNCING` → `SYNCED` *(or `FAILED`)*
 - **QuickBooks Online**: Receives approved expenses and registers them in the Sandbox general ledger.
 
 ---
