@@ -167,7 +167,7 @@ export function LoginPage() {
                 <input
                   id="tf-username"
                   type="text"
-                  autoComplete="username"
+                  autoComplete="off"
                   placeholder="e.g. user"
                   value={username}
                   onChange={e => {
@@ -191,7 +191,7 @@ export function LoginPage() {
                 <input
                   id="tf-password"
                   type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   placeholder="Enter password"
                   value={password}
                   onChange={e => {
