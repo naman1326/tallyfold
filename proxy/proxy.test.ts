@@ -18,6 +18,9 @@ describe('Tallyfold Production API Proxy Handler', () => {
     process.env.API_KEY = 'test-secret-api-key';
     process.env.REVIEW_TOKEN = 'test-secret-review-token';
     process.env.ALLOWED_ORIGIN = PROD_ORIGIN;
+    process.env.AWS_ACCESS_KEY_ID = process.env.AWS_ACCESS_KEY_ID || 'mock-access-key';
+    process.env.AWS_SECRET_ACCESS_KEY = process.env.AWS_SECRET_ACCESS_KEY || 'mock-secret-key';
+    process.env.AWS_REGION = process.env.AWS_REGION || 'eu-north-1';
     delete process.env.PROXY_SECRET;
     resetSecretsCache();
   });

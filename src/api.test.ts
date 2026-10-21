@@ -42,6 +42,17 @@ describe('src/api client error handling', () => {
     await expect(call('/expenses')).rejects.toThrow('403 Forbidden: Forbidden');
   });
 
+  it('produces descriptive actionable error on 429 Limit Exceeded', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ message: 'Limit Exceeded' }), {
+        status: 429,
+        headers: { 'Content-Type': 'application/json' }
+      })
+    );
+
+    await expect(call('/expenses')).rejects.toThrow(/AWS API Gateway Quota Exceeded \(429\): "Limit Exceeded"/);
+  });
+
   it('identifies CORS / network failure from Failed to fetch', async () => {
     globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'));
 

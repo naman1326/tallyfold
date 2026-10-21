@@ -48,6 +48,13 @@ export async function call(path: string, init?: RequestInit) {
           : `Access forbidden (403). The API Gateway rejected the request. Ensure the server-side proxy is injecting a valid x-api-key header.`
       );
     }
+    if (r.status === 429) {
+      throw new Error(
+        serverMsg
+          ? `AWS API Gateway Quota Exceeded (429): "${serverMsg}". The request quota for this API Key's Usage Plan has been exhausted. Increase or extend the quota in the AWS API Gateway console, or set VITE_DEMO=true in .env to test with offline sample data.`
+          : `AWS API Gateway Quota Exceeded (429). The request limit for this API Key's Usage Plan has been exhausted.`
+      );
+    }
     if (r.status === 502 || r.status === 504) {
       throw new Error(
         serverMsg
