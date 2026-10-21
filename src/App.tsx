@@ -30,7 +30,7 @@ function Logo() {
         <path d="M9 7h14v18l-3.5-2.5L16 25l-3.5-2.5L9 25z" fill="#02040a" />
         <path d="M12.5 14.5l2.5 2.5 4.5-5" stroke="#06d6e6" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      <span className="brand-name">Tallyfold</span>
+      <span>Tallyfold</span>
     </Link>
   );
 }
@@ -79,16 +79,8 @@ function ThemeToggleButton() {
 
 const Badge = ({ s }: { s: string }) => {
   const clean = s.replace(/[^A-Z_]/g, '');
-  let variant = 'badge-cyan';
-  if (clean === 'SYNCED') variant = 'badge-paid badge-emerald';
-  else if (clean === 'FAILED') variant = 'badge-unpaid badge-rose';
-  else if (clean === 'NEEDS_REVIEW') variant = 'badge-amber';
-  else if (clean === 'SYNCING') variant = 'badge-violet';
-  else if (clean === 'PENDING') variant = 'badge-cyan';
-
   return (
-    <span className={`badge ${clean} ${variant}`}>
-      <span className="badge-dot" />
+    <span className={`badge ${clean}`}>
       {s.replace(/_/g, ' ')}
     </span>
   );
@@ -148,19 +140,19 @@ const COLS: Record<string, { label: string; field?: SortField; render: (e: Expen
   date: {
     label: 'Date',
     field: 'receiptDate',
-    render: e => <span className="mono" style={{ color: 'var(--text-secondary)' }}>{e.receiptDate || '—'}</span>
+    render: e => <span style={{ color: 'var(--text-secondary)' }}>{e.receiptDate || '—'}</span>
   },
   amount: {
     label: 'Amount',
     field: 'total',
-    render: e => <span className="amount-cell mono">{money(e.total, e.currency)}</span>
+    render: e => <span className="amount-cell">{money(e.total, e.currency)}</span>
   },
   category: {
     label: 'Category',
     field: 'category',
     render: e => (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--cyan)', boxShadow: '0 0 6px var(--cyan-glow)' }} />
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', opacity: 0.7 }} />
         {e.category || '—'}
       </span>
     )
@@ -173,7 +165,7 @@ const COLS: Record<string, { label: string; field?: SortField; render: (e: Expen
       const pct = Math.round(e.confidence * 100);
       const isGood = pct >= 75;
       return (
-        <span className="mono" style={{ color: isGood ? 'var(--emerald)' : 'var(--amber)', fontWeight: 600 }}>
+        <span style={{ color: isGood ? 'var(--emerald)' : 'var(--amber)', fontWeight: 600 }}>
           {pct}%
         </span>
       );
@@ -190,7 +182,7 @@ const COLS: Record<string, { label: string; field?: SortField; render: (e: Expen
         <span style={{ color: 'var(--amber)', fontSize: '0.82rem' }}>
           {e.reviewReasons.join('; ')}
         </span>
-      ) : <span style={{ color: 'var(--text-dim)' }}>—</span>
+      ) : <span style={{ color: 'var(--text-muted)' }}>—</span>
     )
   },
   status: {
@@ -200,11 +192,11 @@ const COLS: Record<string, { label: string; field?: SortField; render: (e: Expen
   },
   id: {
     label: 'Receipt ID',
-    render: e => e.receiptId ? <code className="mono-accent">#{e.receiptId.slice(0, 8)}</code> : '—'
+    render: e => <code>{e.receiptId ? e.receiptId.slice(0, 8) : '—'}</code>
   },
   qbo: {
     label: 'QBO ID',
-    render: e => e.qboId ? <code className="mono">{e.qboId}</code> : '—'
+    render: e => e.qboId ? <code>{e.qboId}</code> : '—'
   },
   err: {
     label: 'Sync Error',
@@ -413,7 +405,7 @@ function List({
           )}
         </div>
       ) : (
-        <div className="table-wrap table-scroll scroll">
+        <div className="scroll">
           <table>
             <thead>
               <tr>
@@ -564,7 +556,7 @@ function ReceiptPreview({
         </div>
       ) : error ? (
         <div className="img-placeholder">
-          <AlertCircle size={32} style={{ color: '#ef4444' }} />
+          <AlertCircle size={32} style={{ color: 'var(--rose)' }} />
           <b>Unable to load receipt preview</b>
           <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>{error}</p>
           <button className="btn-outline btn-sm" onClick={loadUrl} style={{ marginTop: '0.5rem' }}>
@@ -719,35 +711,36 @@ function Detail({
   const confPct = e.confidence !== null ? Math.round(e.confidence * 100) : null;
 
   return (
-    <div className="modal modal-overlay" onClick={onClose}>
+    <div className="modal" onClick={onClose}>
       <div
-        className="panel modal-container"
+        className="panel"
         role="dialog"
         aria-modal="true"
-        aria-label="Receipt details dialog"
+        aria-label="Receipt details drawer"
         onClick={x => x.stopPropagation()}
       >
+        <div className="sheet-handle" />
         <div className="modal-header">
           <div className="modal-title-group">
-            <h2 className="modal-title">
+            <h2>
               <span>{e.merchant || 'Unknown Merchant'}</span>
               <Badge s={e.syncStatus} />
             </h2>
             <div className="modal-id">
-              <span>Receipt ID: <code className="mono-accent">{e.receiptId ? `#${e.receiptId.slice(0, 8)}` : '—'}</code></span>
+              <span>Receipt ID: <code>{e.receiptId || '—'}</code></span>
               {e.receiptId && (
                 <button
-                  className="btn btn-outline btn-xs"
+                  className="btn-outline btn-sm"
                   onClick={copyId}
                   title="Copy full Receipt ID"
-                  style={{ padding: '0.2rem 0.5rem' }}
+                  style={{ padding: '0.15rem 0.4rem' }}
                 >
                   <Copy size={12} />
                 </button>
               )}
             </div>
           </div>
-          <button className="x-btn btn-ghost" onClick={onClose} aria-label="Close dialog" title="Close dialog">
+          <button className="x-btn" onClick={onClose} aria-label="Close dialog" title="Close dialog">
             <X size={18} strokeWidth={2.5} width={18} height={18} />
           </button>
         </div>
@@ -921,19 +914,18 @@ function Dashboard() {
 
   return (
     <>
-      <div className="head page-header">
+      <div className="head">
         <div>
-          <div className="page-eyebrow">Overview &amp; Telemetry</div>
-          <h1 className="page-title">Dashboard</h1>
-          <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.875rem' }}>
-            Real-time receipt reconciliation &amp; QuickBooks Online sandbox pipeline
+          <h1>Dashboard</h1>
+          <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.875rem' }}>
+            Real-time receipt reconciliation & QuickBooks Online sandbox pipeline
           </p>
         </div>
         <div className="head-actions">
-          <Link className="btn btn-primary" to="/upload">
+          <Link className="btn primary" to="/upload">
             <UpIcon size={16} /> Upload receipt
           </Link>
-          <button className="btn btn-outline" onClick={x.load} title="Refresh data">
+          <button className="btn-secondary" onClick={x.load} title="Refresh data">
             <RefreshCw size={14} /> Refresh
           </button>
         </div>
@@ -941,59 +933,59 @@ function Dashboard() {
 
       <State x={x}>
         {/* KPI Metric Cards */}
-        <div className="cards stat-grid">
-          <div className="card stat-card cyan">
-            <div className="card-top stat-top">
-              <span className="stat-label">Total USD spend</span>
-              <div className="stat-icon cyan">
+        <div className="cards">
+          <div className="card">
+            <div className="card-top">
+              <span>Total USD spend</span>
+              <div className="card-icon" style={{ color: 'var(--cyan)', background: 'var(--cyan-dim)' }}>
                 <DollarSign size={20} />
               </div>
             </div>
-            <div className="stat-value">{money(s.total, 'USD')}</div>
+            <b>{money(s.total, 'USD')}</b>
             <span className="card-subtext">Across {x.rows.filter(r => r.currency === 'USD').length} USD receipts</span>
           </div>
 
-          <div className="card stat-card violet card-clickable" onClick={() => navigate('/expenses')}>
-            <div className="card-top stat-top">
-              <span className="stat-label">Total receipts</span>
-              <div className="stat-icon violet">
+          <div className="card card-clickable" onClick={() => navigate('/expenses')}>
+            <div className="card-top">
+              <span>Total receipts</span>
+              <div className="card-icon" style={{ color: 'var(--cyan)', background: 'var(--cyan-dim)' }}>
                 <Receipt size={20} />
               </div>
             </div>
-            <div className="stat-value">{totalCount}</div>
+            <b>{totalCount}</b>
             <span className="card-subtext">Click to view all expenses &rarr;</span>
           </div>
 
-          <div className="card stat-card amber card-clickable" onClick={() => navigate('/review')}>
-            <div className="card-top stat-top">
-              <span className="stat-label">Awaiting review</span>
-              <div className="stat-icon amber">
+          <div className="card card-clickable" onClick={() => navigate('/review')}>
+            <div className="card-top">
+              <span>Awaiting review</span>
+              <div className="card-icon" style={{ color: 'var(--amber)', background: 'var(--amber-dim)' }}>
                 <Clock size={20} />
               </div>
             </div>
-            <div className="stat-value">{s.n('NEEDS_REVIEW')}</div>
+            <b>{s.n('NEEDS_REVIEW')}</b>
             <span className="card-subtext">Requires human verification &rarr;</span>
           </div>
 
-          <div className="card stat-card emerald card-clickable" onClick={() => navigate('/sync')}>
-            <div className="card-top stat-top">
-              <span className="stat-label">Synced to QBO</span>
-              <div className="stat-icon emerald">
+          <div className="card card-clickable" onClick={() => navigate('/sync')}>
+            <div className="card-top">
+              <span>Synced to QBO</span>
+              <div className="card-icon" style={{ color: 'var(--emerald)', background: 'var(--emerald-dim)' }}>
                 <CheckCircle2 size={20} />
               </div>
             </div>
-            <div className="stat-value">{s.n('SYNCED')}</div>
+            <b>{s.n('SYNCED')}</b>
             <span className="card-subtext">Verified in QuickBooks Sandbox</span>
           </div>
 
-          <div className="card stat-card rose card-clickable" onClick={() => navigate('/sync')}>
-            <div className="card-top stat-top">
-              <span className="stat-label">Sync failures</span>
-              <div className="stat-icon rose">
+          <div className="card card-clickable" onClick={() => navigate('/sync')}>
+            <div className="card-top">
+              <span>Sync failures</span>
+              <div className="card-icon" style={{ color: 'var(--rose)', background: 'var(--rose-dim)' }}>
                 <AlertCircle size={20} />
               </div>
             </div>
-            <div className="stat-value">{s.n('FAILED')}</div>
+            <b>{s.n('FAILED')}</b>
             <span className="card-subtext">{s.n('FAILED') > 0 ? 'Requires attention' : 'No sync errors'}</span>
           </div>
         </div>
@@ -1047,7 +1039,7 @@ function Recent({ rows }: { rows: Expense[] }) {
 
   return (
     <>
-      <div className="table-wrap table-scroll scroll">
+      <div className="scroll">
         <table>
           <thead>
             <tr>
@@ -1063,16 +1055,14 @@ function Recent({ rows }: { rows: Expense[] }) {
             {r.map(e => (
               <tr key={e.sk} onClick={() => setSel(e)}>
                 <td style={{ fontWeight: 600 }}>{e.merchant || '—'}</td>
-                <td className="mono" style={{ color: 'var(--text-secondary)' }}>{e.receiptDate}</td>
-                <td className="amount-cell mono">{money(e.total, e.currency)}</td>
+                <td style={{ color: 'var(--text-secondary)' }}>{e.receiptDate}</td>
+                <td className="amount-cell">{money(e.total, e.currency)}</td>
                 <td>{e.category || '—'}</td>
                 <td><Badge s={e.syncStatus} /></td>
                 <td>
-                  <div className="row-actions">
-                    <button className="btn btn-outline btn-xs" onClick={ev => { ev.stopPropagation(); setSel(e); }}>
-                      <Eye size={12} /> View
-                    </button>
-                  </div>
+                  <button className="btn-outline btn-sm" onClick={ev => { ev.stopPropagation(); setSel(e); }}>
+                    <Eye size={12} /> View
+                  </button>
                 </td>
               </tr>
             ))}
@@ -1153,11 +1143,10 @@ function UploadPage() {
 
   return (
     <>
-      <div className="head page-header">
+      <div className="head">
         <div>
-          <div className="page-eyebrow">Ingestion Pipeline</div>
-          <h1 className="page-title">Upload receipt</h1>
-          <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.875rem' }}>
+          <h1>Upload receipt</h1>
+          <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.875rem' }}>
             Submit a paper receipt image for automated OCR recognition and ledger matching
           </p>
         </div>
@@ -1219,9 +1208,9 @@ function UploadPage() {
         </div>
 
         <div className="filter-card">
-          <h3 style={{ margin: '0 0 0.75rem' }} className="section-title">Receipt metadata</h3>
+          <h3 style={{ margin: '0 0 0.75rem' }}>Receipt metadata</h3>
           <div className="filters">
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
               Currency
               <select value={meta.currency} onChange={e => setMeta({ ...meta, currency: e.target.value })}>
                 <option>USD</option>
@@ -1231,12 +1220,12 @@ function UploadPage() {
               </select>
             </label>
 
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
               Checking Account ID
               <input value={meta.paymentAccountId} onChange={e => setMeta({ ...meta, paymentAccountId: e.target.value })} />
             </label>
 
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
               Payment Type
               <select value={meta.paymentType} onChange={e => setMeta({ ...meta, paymentType: e.target.value })}>
                 <option>Cash</option>
@@ -1247,7 +1236,7 @@ function UploadPage() {
 
             <div style={{ alignSelf: 'flex-end', marginLeft: 'auto' }}>
               <button
-                className="btn btn-primary"
+                className="primary"
                 disabled={!file || step === 1 || step === 2}
                 onClick={go}
               >
@@ -1291,7 +1280,7 @@ function UploadPage() {
                 </div>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{s.title}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{s.desc}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.desc}</div>
                   {isActionable && (
                     <div className="step-action-badge">
                       Click to review receipt &rarr;
@@ -1304,12 +1293,12 @@ function UploadPage() {
         </div>
 
         {id && (
-          <div className="filter-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              Assigned Receipt ID: <code className="mono-accent">#{id}</code>
+          <div className="filter-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span>
+              Assigned Receipt ID: <code>{id}</code>
             </span>
             {step === 3 && (
-              <Link to={`/review?receiptId=${encodeURIComponent(id)}`} className="btn btn-primary btn-sm">
+              <Link to={`/review?receiptId=${encodeURIComponent(id)}`} className="btn primary btn-sm">
                 Open review queue &rarr;
               </Link>
             )}
@@ -1368,12 +1357,11 @@ function Page({
 
   return (
     <>
-      <div className="head page-header">
+      <div className="head">
         <div>
-          <div className="page-eyebrow">Pipeline Management</div>
-          <h1 className="page-title">{title}</h1>
+          <h1>{title}</h1>
         </div>
-        <button onClick={x.load} className="btn btn-outline">
+        <button onClick={x.load} className="btn-secondary">
           <RefreshCw size={14} /> Refresh
         </button>
       </div>
@@ -1421,11 +1409,10 @@ function SettingsPage() {
 
   return (
     <>
-      <div className="head page-header">
+      <div className="head">
         <div>
-          <div className="page-eyebrow">System Configuration</div>
-          <h1 className="page-title">Settings &amp; Preferences</h1>
-          <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.875rem' }}>
+          <h1>Settings &amp; Preferences</h1>
+          <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.875rem' }}>
             Configure theme, user identity, and inspect API gateway connection
           </p>
         </div>
@@ -1511,7 +1498,7 @@ function SettingsPage() {
                 </div>
                 <div
                   className="preview-body"
-                  style={{ background: 'linear-gradient(135deg, #f5f5f7 50%, #1c1c1e 50%)' }}
+                  style={{ background: 'linear-gradient(135deg, #f8fafc 50%, #02040a 50%)' }}
                 />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
@@ -1567,9 +1554,9 @@ function SettingsPage() {
               <dt>Data Mode</dt>
               <dd>
                 {api.DEMO ? (
-                  <span style={{ color: '#d97706', fontWeight: 600 }}>Built-in Demo Sample Data</span>
+                  <span style={{ color: 'var(--amber)', fontWeight: 600 }}>Built-in Demo Sample Data</span>
                 ) : (
-                  <span style={{ color: '#10b981', fontWeight: 600 }}>Live AWS Pipeline Gateway</span>
+                  <span style={{ color: 'var(--emerald)', fontWeight: 600 }}>Live AWS Pipeline Gateway</span>
                 )}
               </dd>
             </div>
@@ -1579,9 +1566,9 @@ function SettingsPage() {
                 {x.loading ? (
                   <span>Checking status…</span>
                 ) : x.err ? (
-                  <span style={{ color: '#ef4444' }}>Error: {x.err}</span>
+                  <span style={{ color: 'var(--rose)' }}>Error: {x.err}</span>
                 ) : (
-                  <span style={{ color: '#10b981' }}>Connected ({x.rows.length} records loaded)</span>
+                  <span style={{ color: 'var(--emerald)' }}>Connected ({x.rows.length} records loaded)</span>
                 )}
               </dd>
             </div>
@@ -1636,25 +1623,25 @@ function MainShell() {
 
   return (
     <>
-      <header className="top page-header-bar">
+      <header className="top">
         <Logo />
 
         <div className="top-actions">
-          <span className="env page-eyebrow">
-            <span className="env-dot pulse" />
+          <span className="env">
+            <span className="env-dot" />
             QuickBooks Sandbox
           </span>
 
           <ThemeToggleButton />
 
-          <Link to="/upload" className="btn btn-primary btn-sm" style={{ textDecoration: 'none' }}>
+          <Link to="/upload" className="btn primary btn-sm" style={{ textDecoration: 'none' }}>
             <UpIcon size={14} /> Upload
           </Link>
 
           <button
             type="button"
             onClick={handleLogout}
-            className="btn btn-ghost btn-sm btn-signout"
+            className="btn-signout"
             title="Sign Out of Tallyfold"
             aria-label="Sign Out"
           >
@@ -1665,15 +1652,15 @@ function MainShell() {
 
       {api.DEMO && (
         <div className="demo-banner">
-          <span className="badge badge-amber">Demo Mode</span>
-          <span>Displaying built-in sample expenses (backend calls disabled).</span>
+          <span>Demo Mode</span>
+          Displaying built-in sample expenses (backend calls disabled).
         </div>
       )}
 
-      <div className="app-shell shell">
-        <aside className="sidebar" aria-label="Main Navigation">
+      <div className="shell">
+        <nav aria-label="Main Navigation">
           <div className="nav-links">
-            <div className="nav-section-label section-title">Navigation</div>
+            <div className="nav-section-label">Navigation</div>
             {NAV.map(([to, label, badgeFn, icon]) => (
               <NavLink key={to} to={to} end={to === '/'}>
                 {icon}
@@ -1690,12 +1677,12 @@ function MainShell() {
               </div>
               <div className="user-meta" style={{ flex: 1, minWidth: 0 }}>
                 <span className="user-name">{activeUser}</span>
-                <span className="user-role mono">Sandbox Auditor</span>
+                <span className="user-role">Sandbox Auditor</span>
               </div>
               <button
                 type="button"
                 onClick={handleLogout}
-                className="btn-signout btn-ghost"
+                className="btn-signout"
                 title="Sign Out"
                 aria-label="Sign Out"
                 style={{ border: 'none', padding: '4px' }}
@@ -1704,9 +1691,9 @@ function MainShell() {
               </button>
             </div>
           </div>
-        </aside>
+        </nav>
 
-        <main className="main-content">
+        <main>
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/upload" element={<UploadPage />} />
