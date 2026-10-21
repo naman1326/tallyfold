@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { User, Lock, Eye, EyeOff, LogIn, AlertCircle, Key, RefreshCw, ShieldCheck } from 'lucide-react';
-import { useAuth, VALID_CREDENTIALS } from './auth';
+import { User, Lock, Eye, EyeOff, LogIn, AlertCircle, RefreshCw, ShieldCheck } from 'lucide-react';
+import { useAuth } from './auth';
 import { useToast } from './toast';
 import { useTheme, type Theme } from './theme';
 import { Sun, Moon, Laptop } from 'lucide-react';
@@ -95,11 +95,7 @@ export function LoginPage() {
     }, 300);
   };
 
-  const handleUseDemo = () => {
-    setUsername(VALID_CREDENTIALS.username);
-    setPassword(VALID_CREDENTIALS.password);
-    setErrorMsg('');
-  };
+
 
   return (
     <div className="login-screen-wrapper">
@@ -137,18 +133,6 @@ export function LoginPage() {
             <h2>Sign in to Tallyfold</h2>
             <p>Access the QuickBooks expense inspection and audit pipeline.</p>
           </div>
-
-          <button
-            type="button"
-            className="login-demo-helper"
-            onClick={handleUseDemo}
-            title="Click to pre-fill test credentials"
-          >
-            <Key size={14} />
-            <span>
-              Click to autofill: <strong>{VALID_CREDENTIALS.username}</strong> / <strong>{VALID_CREDENTIALS.password}</strong>
-            </span>
-          </button>
 
           {errorMsg && (
             <div className="login-error-banner" role="alert">
