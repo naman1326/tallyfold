@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { handler, resetSecretsCache, setSSMClient } from './handler.js';
+import { handler, resetSecretsCache, setSSMClient, setS3Client } from './handler.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -455,7 +455,7 @@ describe('Tallyfold Production API Proxy Handler', () => {
   describe('SAM Template Configuration (proxy/template.yaml)', () => {
     it('specifies nodejs24.x runtime and valid AllowMethods without OPTIONS', () => {
       const templatePath = path.resolve(__dirname, 'template.yaml');
-      const templateContent = fs.readFileSync(templatePath, 'utf8');
+      const templateContent = fs.readFileSync(templatePath, 'utf8').replace(/\r\n/g, '\n');
 
       expect(templateContent).toContain('Runtime: nodejs24.x');
       expect(templateContent).not.toContain('Runtime: nodejs20.x');
@@ -467,14 +467,14 @@ describe('Tallyfold Production API Proxy Handler', () => {
 
     it('defaults AllowedOrigin to production Amplify origin', () => {
       const templatePath = path.resolve(__dirname, 'template.yaml');
-      const templateContent = fs.readFileSync(templatePath, 'utf8');
+      const templateContent = fs.readFileSync(templatePath, 'utf8').replace(/\r\n/g, '\n');
 
       expect(templateContent).toContain("Default: 'https://main.d7hymcw027vmv.amplifyapp.com'");
     });
 
     it('does not define ApiKey or ReviewToken as CloudFormation parameters', () => {
       const templatePath = path.resolve(__dirname, 'template.yaml');
-      const templateContent = fs.readFileSync(templatePath, 'utf8');
+      const templateContent = fs.readFileSync(templatePath, 'utf8').replace(/\r\n/g, '\n');
 
       // Ensure raw secrets are not defined as template parameters
       expect(templateContent).not.toMatch(/^\s*ApiKey:\s*$/m);
@@ -489,7 +489,7 @@ describe('Tallyfold Production API Proxy Handler', () => {
 
     it('restricts SSM permissions to ssm:GetParameter on the two specific parameter ARNs in eu-north-1', () => {
       const templatePath = path.resolve(__dirname, 'template.yaml');
-      const templateContent = fs.readFileSync(templatePath, 'utf8');
+      const templateContent = fs.readFileSync(templatePath, 'utf8').replace(/\r\n/g, '\n');
 
       expect(templateContent).toContain('Action:\n                - ssm:GetParameter');
       expect(templateContent).toContain("!Sub 'arn:aws:ssm:eu-north-1:${AWS::AccountId}:parameter/expense/proxy/api_key'");
@@ -515,6 +515,78 @@ describe('Tallyfold Production API Proxy Handler', () => {
     it('has a matching package-lock.json in proxy/ for reproducible sam build', () => {
       const lockPath = path.resolve(__dirname, 'package-lock.json');
       expect(fs.existsSync(lockPath)).toBe(true);
+    });
+  });
+
+  describe('Receipt Image & Presigned GET URL Endpoints', () => {
+    it('returns 400 Bad Request when s3Key is missing or invalid', async () => {
+      const event = {
+        httpMethod: 'GET',
+        rawPath: '/api/receipt-url',
+        headers: { origin: PROD_ORIGIN },
+        queryStringParameters: {}
+      };
+
+      const res = await handler(event);
+      expect(res.statusCode).toBe(400);
+      const body = JSON.parse(res.body);
+      expect(body.error).toBe('Bad Request');
+      expect(body.message).toContain('Valid s3Key parameter is required');
+    });
+
+    it('returns 400 Bad Request on path traversal attempts in s3Key', async () => {
+      const event = {
+        httpMethod: 'GET',
+        rawPath: '/api/receipt-url',
+        headers: { origin: PROD_ORIGIN },
+        queryStringParameters: { key: '../etc/passwd' }
+      };
+
+      const res = await handler(event);
+      expect(res.statusCode).toBe(400);
+    });
+
+    it('returns 200 with presigned URL when valid s3Key is provided', async () => {
+      const event = {
+        httpMethod: 'GET',
+        rawPath: '/api/receipt-url',
+        headers: { origin: PROD_ORIGIN },
+        queryStringParameters: { key: 'uploads/user/968ba38e50104126984dc8ad9aff523f.jpg' }
+      };
+
+      const res = await handler(event);
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(body.url).toBeDefined();
+      expect(body.url).toContain('receipts-510821108145-us-east-1');
+      expect(body.url).toContain('968ba38e50104126984dc8ad9aff523f.jpg');
+      expect(body.key).toBe('uploads/user/968ba38e50104126984dc8ad9aff523f.jpg');
+    });
+
+    it('returns 307 redirect with Location header on /receipt-image', async () => {
+      const event = {
+        httpMethod: 'GET',
+        rawPath: '/api/receipt-image',
+        headers: { origin: PROD_ORIGIN },
+        queryStringParameters: { key: 'uploads/user/968ba38e50104126984dc8ad9aff523f.jpg' }
+      };
+
+      const res = await handler(event);
+      expect(res.statusCode).toBe(307);
+      expect(res.headers['Location']).toBeDefined();
+      expect(res.headers['Location']).toContain('968ba38e50104126984dc8ad9aff523f.jpg');
+    });
+
+    it('rejects POST on /receipt-url with 405 Method Not Allowed', async () => {
+      const event = {
+        httpMethod: 'POST',
+        rawPath: '/api/receipt-url',
+        headers: { origin: PROD_ORIGIN },
+        queryStringParameters: { key: 'uploads/user/abc.jpg' }
+      };
+
+      const res = await handler(event);
+      expect(res.statusCode).toBe(405);
     });
   });
 });

@@ -22,20 +22,28 @@
  */
 
 import { SSMClient, GetParameterCommand } from '@aws-sdk/client-ssm';
+import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const DEFAULT_API_BASE = 'https://vec4q0sqc9.execute-api.eu-north-1.amazonaws.com/prod';
 const DEFAULT_ALLOWED_ORIGIN = 'https://main.d7hymcw027vmv.amplifyapp.com';
 const DEFAULT_API_KEY_PARAM = '/expense/proxy/api_key';
 const DEFAULT_REVIEW_TOKEN_PARAM = '/expense/proxy/review_token';
+const DEFAULT_RECEIPTS_BUCKET = 'receipts-510821108145-us-east-1';
 
 // In-memory cache for parameters to optimize warm invocations
 let cachedApiKey = null;
 let cachedReviewToken = null;
 
 let ssmClient = new SSMClient({ region: process.env.AWS_REGION || 'eu-north-1' });
+let s3Client = new S3Client({ region: process.env.AWS_REGION || 'eu-north-1' });
 
 export function setSSMClient(client) {
   ssmClient = client;
+}
+
+export function setS3Client(client) {
+  s3Client = client;
 }
 
 export function resetSecretsCache() {
@@ -95,7 +103,9 @@ export async function getReviewToken() {
 export const ALLOWED_ROUTES = {
   '/expenses': ['GET'],
   '/upload': ['POST'],
-  '/review': ['POST']
+  '/review': ['POST'],
+  '/receipt-url': ['GET'],
+  '/receipt-image': ['GET']
 };
 
 function getHeader(headers, name) {
@@ -228,6 +238,67 @@ export async function handler(event) {
         message: `HTTP ${method} is not allowed for ${subPath}. Allowed: ${allowedMethods.join(', ')}`
       })
     };
+  }
+
+  // 5a. Direct S3 Presigned URL & Image Endpoints
+  if (subPath === '/receipt-url' || subPath === '/receipt-image') {
+    let s3Key = '';
+    if (event.queryStringParameters) {
+      s3Key = (event.queryStringParameters.key || event.queryStringParameters.s3Key || '').trim();
+    } else if (event.rawQueryString) {
+      const q = new URLSearchParams(event.rawQueryString);
+      s3Key = (q.get('key') || q.get('s3Key') || '').trim();
+    }
+
+    if (!s3Key || !/^uploads\/[a-zA-Z0-9_\-.]+\/[a-zA-Z0-9_\-.]+\.(jpg|jpeg|png)$/i.test(s3Key)) {
+      return {
+        statusCode: 400,
+        headers: { ...corsHeaders, 'content-type': 'application/json' },
+        body: JSON.stringify({ error: 'Bad Request', message: 'Valid s3Key parameter is required (e.g. uploads/user/id.jpg).' })
+      };
+    }
+
+    try {
+      const bucket = process.env.RECEIPTS_BUCKET || DEFAULT_RECEIPTS_BUCKET;
+      const command = new GetObjectCommand({
+        Bucket: bucket,
+        Key: s3Key,
+      });
+      const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 900 });
+
+      if (subPath === '/receipt-image') {
+        return {
+          statusCode: 307,
+          headers: {
+            ...corsHeaders,
+            'Location': presignedUrl,
+            'Cache-Control': 'private, max-age=800',
+            'content-type': 'text/plain'
+          },
+          body: 'Redirecting to presigned image URL'
+        };
+      }
+
+      return {
+        statusCode: 200,
+        headers: {
+          ...corsHeaders,
+          'content-type': 'application/json',
+          'Cache-Control': 'private, max-age=800'
+        },
+        body: JSON.stringify({
+          url: presignedUrl,
+          key: s3Key,
+          expiresIn: 900
+        })
+      };
+    } catch {
+      return {
+        statusCode: 500,
+        headers: { ...corsHeaders, 'content-type': 'application/json' },
+        body: JSON.stringify({ error: 'Internal Error', message: 'Failed to generate presigned receipt URL.' })
+      };
+    }
   }
 
   // 6. Validate Required Server-Side Environment Variables & Secrets

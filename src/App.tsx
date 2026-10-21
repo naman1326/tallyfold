@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { BrowserRouter, Link, NavLink, Route, Routes, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Link, NavLink, Route, Routes, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   BookOpen, ClipboardCheck, LayoutDashboard, RefreshCw, Settings as Cog, Upload as UpIcon,
   Sun, Moon, Laptop, ArrowUpDown, ArrowUp, ArrowDown, Search, X, Download, Copy, Check,
@@ -501,6 +501,154 @@ function List({
   );
 }
 
+function ReceiptPreview({
+  s3Key,
+  merchant,
+  receiptId
+}: {
+  s3Key: string;
+  merchant?: string;
+  receiptId?: string;
+}) {
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const { success } = useToast();
+
+  const loadUrl = useCallback(async () => {
+    if (!s3Key) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const url = await api.getReceiptUrl(s3Key);
+      if (url) {
+        setImageUrl(url);
+      } else {
+        setError('No preview URL generated.');
+      }
+    } catch (err: unknown) {
+      setError((err as Error).message || 'Failed to generate receipt image preview');
+    } finally {
+      setLoading(false);
+    }
+  }, [s3Key]);
+
+  useEffect(() => {
+    loadUrl();
+  }, [loadUrl]);
+
+  const copyKey = () => {
+    if (!s3Key) return;
+    navigator.clipboard.writeText(s3Key);
+    success('S3 Key copied to clipboard');
+  };
+
+  return (
+    <div className="receipt-preview-container">
+      {loading ? (
+        <div className="receipt-preview-loading">
+          <RefreshCw size={24} className="spin" style={{ color: 'var(--primary)' }} />
+          <span>Generating secure receipt image preview…</span>
+        </div>
+      ) : error ? (
+        <div className="img-placeholder">
+          <AlertCircle size={32} style={{ color: '#ef4444' }} />
+          <b>Unable to load receipt preview</b>
+          <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>{error}</p>
+          <button className="btn-outline btn-sm" onClick={loadUrl} style={{ marginTop: '0.5rem' }}>
+            <RefreshCw size={12} /> Retry
+          </button>
+        </div>
+      ) : imageUrl ? (
+        <>
+          <div
+            className="receipt-img-card"
+            onClick={() => setLightboxOpen(true)}
+            title="Click to view full-resolution receipt"
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightboxOpen(true); } }}
+          >
+            <img
+              src={imageUrl}
+              alt={`Receipt from ${merchant || 'store'}`}
+              className="receipt-live-img"
+              onError={() => setError('Image failed to render in browser.')}
+            />
+            <div className="receipt-badge-overlay">
+              <Eye size={12} /> Click to expand
+            </div>
+          </div>
+
+          <div className="receipt-key-banner">
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <FileText size={12} /> S3: <code title={s3Key}>{s3Key.length > 28 ? `…${s3Key.slice(-26)}` : s3Key}</code>
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+              <button
+                className="btn-outline btn-sm"
+                onClick={copyKey}
+                title="Copy full S3 key"
+                style={{ padding: '0.15rem 0.4rem', fontSize: '0.7rem' }}
+              >
+                <Copy size={11} /> Copy Key
+              </button>
+              <a
+                href={imageUrl}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="btn-outline btn-sm"
+                title="Open image in new tab"
+                style={{ padding: '0.15rem 0.4rem', fontSize: '0.7rem' }}
+                onClick={e => e.stopPropagation()}
+              >
+                <ExternalLink size={11} />
+              </a>
+            </div>
+          </div>
+
+          {lightboxOpen && (
+            <div className="receipt-lightbox" onClick={() => setLightboxOpen(false)}>
+              <div className="receipt-lightbox-header" onClick={e => e.stopPropagation()}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <FileText size={18} />
+                  <span style={{ fontWeight: 600 }}>{merchant || 'Receipt Image'}</span>
+                  {receiptId && <span style={{ opacity: 0.7, fontSize: '0.85rem' }}>({receiptId})</span>}
+                </div>
+                <button
+                  className="x-btn"
+                  onClick={() => setLightboxOpen(false)}
+                  aria-label="Close lightbox"
+                  title="Close (Esc)"
+                >
+                  <X size={18} strokeWidth={2.4} />
+                </button>
+              </div>
+              <div className="receipt-lightbox-content" onClick={e => e.stopPropagation()}>
+                <img
+                  src={imageUrl}
+                  alt={`Receipt from ${merchant || 'store'}`}
+                  className="receipt-lightbox-img"
+                />
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="img-placeholder">
+          <FileText size={36} />
+          <b>No receipt image preview</b>
+          <p style={{ margin: 0 }}>The S3 storage bucket is private and no key was found.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Detail({
   e,
   onClose,
@@ -592,8 +740,8 @@ function Detail({
               )}
             </div>
           </div>
-          <button className="x-btn" onClick={onClose} aria-label="Close dialog">
-            <X size={18} />
+          <button className="x-btn" onClick={onClose} aria-label="Close dialog" title="Close dialog">
+            <X size={18} strokeWidth={2.4} />
           </button>
         </div>
 
@@ -622,16 +770,7 @@ function Detail({
         </div>
 
         <div className="two">
-          <div className="img-placeholder">
-            <FileText size={40} />
-            <b>Receipt image preview</b>
-            <p style={{ margin: 0 }}>
-              The S3 storage bucket is private. Key: <code>{e.s3Key || 's3Key'}</code>
-            </p>
-            <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>
-              Presigned GET endpoint required for browser rendering.
-            </span>
-          </div>
+          <ReceiptPreview s3Key={e.s3Key} merchant={e.merchant} receiptId={e.receiptId} />
 
           <dl>
             {([
@@ -942,6 +1081,7 @@ function UploadPage() {
   const [msg, setMsg] = useState('');
   const [id, setId] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
+  const navigate = useNavigate();
 
   const { success, error } = useToast();
 
@@ -1115,10 +1255,25 @@ function UploadPage() {
           {stepsList.map((s, i) => {
             const isCompleted = i < step;
             const isCurrent = i === step && (file !== null || step > 0);
+            const isReviewOrSync = i === 3;
+            const isActionable = isReviewOrSync && (step === 3 || Boolean(id));
+
+            const handleClick = () => {
+              if (isActionable) {
+                const targetUrl = id ? `/review?receiptId=${encodeURIComponent(id)}` : '/review';
+                navigate(targetUrl);
+              }
+            };
+
             return (
               <div
                 key={s.title}
-                className={`step-card ${isCurrent ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
+                className={`step-card ${isCurrent ? 'active' : ''} ${isCompleted ? 'completed' : ''} ${isActionable ? 'actionable' : ''}`}
+                onClick={isActionable ? handleClick : undefined}
+                role={isActionable ? 'button' : undefined}
+                tabIndex={isActionable ? 0 : undefined}
+                onKeyDown={isActionable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(); } } : undefined}
+                title={isActionable ? `Click to open review page for uploaded receipt (${id || 'ready'})` : undefined}
               >
                 <div className="step-number">
                   {isCompleted ? <Check size={16} /> : i + 1}
@@ -1126,6 +1281,11 @@ function UploadPage() {
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{s.title}</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.desc}</div>
+                  {isActionable && (
+                    <div className="step-action-badge">
+                      Click to review receipt &rarr;
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -1138,7 +1298,7 @@ function UploadPage() {
               Assigned Receipt ID: <code>{id}</code>
             </span>
             {step === 3 && (
-              <Link to="/review" className="btn primary btn-sm">
+              <Link to={`/review?receiptId=${encodeURIComponent(id)}`} className="btn primary btn-sm">
                 Open review queue &rarr;
               </Link>
             )}
@@ -1170,6 +1330,30 @@ function Page({
 }) {
   const x = useExpenses();
   const [sel, setSel] = useState<Expense | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const targetReceiptId = searchParams.get('receiptId') || searchParams.get('id');
+
+  // Automatically select & open the requested receipt if specified in the query params
+  useEffect(() => {
+    if (targetReceiptId && x.rows.length > 0 && !sel) {
+      const match = x.rows.find(
+        r => r.receiptId === targetReceiptId || r.sk.split('#')[1] === targetReceiptId || r.sk.includes(targetReceiptId)
+      );
+      if (match) {
+        setSel(match);
+      }
+    }
+  }, [targetReceiptId, x.rows, sel]);
+
+  const handleClose = () => {
+    setSel(null);
+    if (targetReceiptId) {
+      const nextParams = new URLSearchParams(searchParams);
+      nextParams.delete('receiptId');
+      nextParams.delete('id');
+      setSearchParams(nextParams, { replace: true });
+    }
+  };
 
   return (
     <>
@@ -1197,7 +1381,7 @@ function Page({
           <Detail
             e={sel}
             canApprove={!!approve}
-            onClose={() => setSel(null)}
+            onClose={handleClose}
             onDone={() => { x.load(); }}
           />
         )}

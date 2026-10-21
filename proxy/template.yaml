@@ -44,6 +44,12 @@ Resources:
               Resource:
                 - !Sub 'arn:aws:ssm:eu-north-1:${AWS::AccountId}:parameter/expense/proxy/api_key'
                 - !Sub 'arn:aws:ssm:eu-north-1:${AWS::AccountId}:parameter/expense/proxy/review_token'
+            - Sid: AllowS3GetReceiptObject
+              Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource:
+                - 'arn:aws:s3:::receipts-510821108145-us-east-1/*'
       # Note on AuthType: NONE is used because static frontend SPAs on Amplify Hosting
       # run directly in browser clients and cannot sign requests with AWS IAM (SigV4)
       # without a complete Cognito Identity Pool & STS authentication stack.
@@ -77,6 +83,7 @@ Resources:
           PROXY_SECRET: !Ref ProxySecret
           API_KEY_PARAM_NAME: !Ref ApiKeyParameterName
           REVIEW_TOKEN_PARAM_NAME: !Ref ReviewTokenParameterName
+          RECEIPTS_BUCKET: 'receipts-510821108145-us-east-1'
 
 Outputs:
   ProxyFunctionUrl:

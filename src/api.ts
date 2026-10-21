@@ -92,6 +92,15 @@ export async function uploadReceipt(userId: string, file: File, meta: UploadMeta
   return j.receiptId as string;
 }
 
+export async function getReceiptUrl(s3Key: string): Promise<string> {
+  if (!s3Key) return '';
+  if (DEMO) {
+    return 'https://images.unsplash.com/photo-1554415707-9e4466bfe0dc?auto=format&fit=crop&w=600&q=80';
+  }
+  const j = await call(`/receipt-url?key=${encodeURIComponent(s3Key)}`);
+  return j.url || '';
+}
+
 // Review token and API key are injected server-side by the proxy;
 // they never exist in browser code or client JavaScript.
 export async function approve(
