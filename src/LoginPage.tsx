@@ -104,20 +104,20 @@ export function LoginPage() {
           <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true">
             <defs>
               <linearGradient id="tfLogoGradLogin" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="var(--primary)" />
-                <stop offset="100%" stopColor="#14b8a6" />
+                <stop offset="0%" stopColor="#06d6e6" />
+                <stop offset="100%" stopColor="#00a8b3" />
               </linearGradient>
             </defs>
             <rect width="32" height="32" rx="9" fill="url(#tfLogoGradLogin)" />
-            <path d="M9 7h14v18l-3.5-2.5L16 25l-3.5-2.5L9 25z" fill="#fff" />
-            <path d="M12.5 14.5l2.5 2.5 4.5-5" stroke="var(--primary)" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M9 7h14v18l-3.5-2.5L16 25l-3.5-2.5L9 25z" fill="#02040a" />
+            <path d="M12.5 14.5l2.5 2.5 4.5-5" stroke="#06d6e6" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <span>Tallyfold</span>
+          <span className="brand-name">Tallyfold</span>
         </Link>
 
         <div className="login-top-actions">
-          <span className="env">
-            <span className="env-dot" />
+          <span className="env page-eyebrow">
+            <span className="env-dot pulse" />
             QuickBooks Sandbox
           </span>
           <LoginThemeToggle />
@@ -125,12 +125,13 @@ export function LoginPage() {
       </div>
 
       <div className="login-center-container">
-        <div className="login-card">
+        <div className="login-card login-panel">
+          <div className="laser-beam" />
           <div className="login-header">
             <div className="login-icon-badge">
               <ShieldCheck size={26} strokeWidth={2.2} />
             </div>
-            <h2>Sign in to Tallyfold</h2>
+            <h2 className="modal-title">Sign in to Tallyfold</h2>
             <p>Access the QuickBooks expense inspection and audit pipeline.</p>
           </div>
 
@@ -209,7 +210,7 @@ export function LoginPage() {
 
             <button
               type="submit"
-              className="primary btn login-btn"
+              className="btn btn-primary login-btn"
               disabled={loading || !username.trim() || !password}
             >
               {loading ? (
@@ -228,10 +229,10 @@ export function LoginPage() {
 
           <div className="login-footer">
             <div className="login-security-tag">
-              <span className="env-dot" />
-              <span>TLS 1.3 End-to-End Encrypted Session</span>
+              <span className="env-dot pulse" />
+              <span className="mono">TLS 1.3 End-to-End Encrypted Session</span>
             </div>
-            <div className="login-copyright">
+            <div className="login-copyright mono">
               Tallyfold Financial Systems &copy; 2026
             </div>
           </div>

@@ -22,15 +22,15 @@ function Logo() {
       <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
         <defs>
           <linearGradient id="tfLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="var(--primary)" />
-            <stop offset="100%" stopColor="#14b8a6" />
+            <stop offset="0%" stopColor="#06d6e6" />
+            <stop offset="100%" stopColor="#00a8b3" />
           </linearGradient>
         </defs>
         <rect width="32" height="32" rx="9" fill="url(#tfLogoGrad)" />
-        <path d="M9 7h14v18l-3.5-2.5L16 25l-3.5-2.5L9 25z" fill="#fff" />
-        <path d="M12.5 14.5l2.5 2.5 4.5-5" stroke="var(--primary)" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M9 7h14v18l-3.5-2.5L16 25l-3.5-2.5L9 25z" fill="#02040a" />
+        <path d="M12.5 14.5l2.5 2.5 4.5-5" stroke="#06d6e6" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
-      <span>Tallyfold</span>
+      <span className="brand-name">Tallyfold</span>
     </Link>
   );
 }
@@ -79,8 +79,16 @@ function ThemeToggleButton() {
 
 const Badge = ({ s }: { s: string }) => {
   const clean = s.replace(/[^A-Z_]/g, '');
+  let variant = 'badge-cyan';
+  if (clean === 'SYNCED') variant = 'badge-paid badge-emerald';
+  else if (clean === 'FAILED') variant = 'badge-unpaid badge-rose';
+  else if (clean === 'NEEDS_REVIEW') variant = 'badge-amber';
+  else if (clean === 'SYNCING') variant = 'badge-violet';
+  else if (clean === 'PENDING') variant = 'badge-cyan';
+
   return (
-    <span className={`badge ${clean}`}>
+    <span className={`badge ${clean} ${variant}`}>
+      <span className="badge-dot" />
       {s.replace(/_/g, ' ')}
     </span>
   );
@@ -140,19 +148,19 @@ const COLS: Record<string, { label: string; field?: SortField; render: (e: Expen
   date: {
     label: 'Date',
     field: 'receiptDate',
-    render: e => <span style={{ color: 'var(--text-secondary)' }}>{e.receiptDate || '—'}</span>
+    render: e => <span className="mono" style={{ color: 'var(--text-secondary)' }}>{e.receiptDate || '—'}</span>
   },
   amount: {
     label: 'Amount',
     field: 'total',
-    render: e => <span className="amount-cell">{money(e.total, e.currency)}</span>
+    render: e => <span className="amount-cell mono">{money(e.total, e.currency)}</span>
   },
   category: {
     label: 'Category',
     field: 'category',
     render: e => (
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>
-        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--primary)', opacity: 0.7 }} />
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+        <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--cyan)', boxShadow: '0 0 6px var(--cyan-glow)' }} />
         {e.category || '—'}
       </span>
     )
@@ -165,7 +173,7 @@ const COLS: Record<string, { label: string; field?: SortField; render: (e: Expen
       const pct = Math.round(e.confidence * 100);
       const isGood = pct >= 75;
       return (
-        <span style={{ color: isGood ? '#10b981' : '#f59e0b', fontWeight: 600 }}>
+        <span className="mono" style={{ color: isGood ? 'var(--emerald)' : 'var(--amber)', fontWeight: 600 }}>
           {pct}%
         </span>
       );
@@ -179,10 +187,10 @@ const COLS: Record<string, { label: string; field?: SortField; render: (e: Expen
     label: 'Review reason',
     render: e => (
       e.reviewReasons.length ? (
-        <span style={{ color: '#d97706', fontSize: '0.82rem' }}>
+        <span style={{ color: 'var(--amber)', fontSize: '0.82rem' }}>
           {e.reviewReasons.join('; ')}
         </span>
-      ) : <span style={{ color: 'var(--text-muted)' }}>—</span>
+      ) : <span style={{ color: 'var(--text-dim)' }}>—</span>
     )
   },
   status: {
@@ -192,16 +200,16 @@ const COLS: Record<string, { label: string; field?: SortField; render: (e: Expen
   },
   id: {
     label: 'Receipt ID',
-    render: e => <code>{e.receiptId ? e.receiptId.slice(0, 8) : '—'}</code>
+    render: e => e.receiptId ? <code className="mono-accent">#{e.receiptId.slice(0, 8)}</code> : '—'
   },
   qbo: {
     label: 'QBO ID',
-    render: e => e.qboId ? <code>{e.qboId}</code> : '—'
+    render: e => e.qboId ? <code className="mono">{e.qboId}</code> : '—'
   },
   err: {
     label: 'Sync Error',
     render: e => e.syncError ? (
-      <span style={{ color: '#ef4444', fontSize: '0.82rem' }}>{e.syncError}</span>
+      <span style={{ color: 'var(--rose)', fontSize: '0.82rem' }}>{e.syncError}</span>
     ) : '—'
   },
 };
@@ -405,7 +413,7 @@ function List({
           )}
         </div>
       ) : (
-        <div className="scroll">
+        <div className="table-wrap table-scroll scroll">
           <table>
             <thead>
               <tr>
@@ -711,36 +719,35 @@ function Detail({
   const confPct = e.confidence !== null ? Math.round(e.confidence * 100) : null;
 
   return (
-    <div className="modal" onClick={onClose}>
+    <div className="modal modal-overlay" onClick={onClose}>
       <div
-        className="panel"
+        className="panel modal-container"
         role="dialog"
         aria-modal="true"
-        aria-label="Receipt details drawer"
+        aria-label="Receipt details dialog"
         onClick={x => x.stopPropagation()}
       >
-        <div className="sheet-handle" />
         <div className="modal-header">
           <div className="modal-title-group">
-            <h2>
+            <h2 className="modal-title">
               <span>{e.merchant || 'Unknown Merchant'}</span>
               <Badge s={e.syncStatus} />
             </h2>
             <div className="modal-id">
-              <span>Receipt ID: <code>{e.receiptId || '—'}</code></span>
+              <span>Receipt ID: <code className="mono-accent">{e.receiptId ? `#${e.receiptId.slice(0, 8)}` : '—'}</code></span>
               {e.receiptId && (
                 <button
-                  className="btn-outline btn-sm"
+                  className="btn btn-outline btn-xs"
                   onClick={copyId}
                   title="Copy full Receipt ID"
-                  style={{ padding: '0.15rem 0.4rem' }}
+                  style={{ padding: '0.2rem 0.5rem' }}
                 >
                   <Copy size={12} />
                 </button>
               )}
             </div>
           </div>
-          <button className="x-btn" onClick={onClose} aria-label="Close dialog" title="Close dialog">
+          <button className="x-btn btn-ghost" onClick={onClose} aria-label="Close dialog" title="Close dialog">
             <X size={18} strokeWidth={2.5} width={18} height={18} />
           </button>
         </div>
@@ -914,18 +921,19 @@ function Dashboard() {
 
   return (
     <>
-      <div className="head">
+      <div className="head page-header">
         <div>
-          <h1>Dashboard</h1>
-          <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.875rem' }}>
-            Real-time receipt reconciliation & QuickBooks Online sandbox pipeline
+          <div className="page-eyebrow">Overview &amp; Telemetry</div>
+          <h1 className="page-title">Dashboard</h1>
+          <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.875rem' }}>
+            Real-time receipt reconciliation &amp; QuickBooks Online sandbox pipeline
           </p>
         </div>
         <div className="head-actions">
-          <Link className="btn primary" to="/upload">
+          <Link className="btn btn-primary" to="/upload">
             <UpIcon size={16} /> Upload receipt
           </Link>
-          <button className="btn-secondary" onClick={x.load} title="Refresh data">
+          <button className="btn btn-outline" onClick={x.load} title="Refresh data">
             <RefreshCw size={14} /> Refresh
           </button>
         </div>
@@ -933,59 +941,59 @@ function Dashboard() {
 
       <State x={x}>
         {/* KPI Metric Cards */}
-        <div className="cards">
-          <div className="card">
-            <div className="card-top">
-              <span>Total USD spend</span>
-              <div className="card-icon" style={{ color: '#0f766e', background: 'var(--primary-light)' }}>
+        <div className="cards stat-grid">
+          <div className="card stat-card cyan">
+            <div className="card-top stat-top">
+              <span className="stat-label">Total USD spend</span>
+              <div className="stat-icon cyan">
                 <DollarSign size={20} />
               </div>
             </div>
-            <b>{money(s.total, 'USD')}</b>
+            <div className="stat-value">{money(s.total, 'USD')}</div>
             <span className="card-subtext">Across {x.rows.filter(r => r.currency === 'USD').length} USD receipts</span>
           </div>
 
-          <div className="card card-clickable" onClick={() => navigate('/expenses')}>
-            <div className="card-top">
-              <span>Total receipts</span>
-              <div className="card-icon" style={{ color: '#0284c7', background: 'rgba(2, 132, 199, 0.12)' }}>
+          <div className="card stat-card violet card-clickable" onClick={() => navigate('/expenses')}>
+            <div className="card-top stat-top">
+              <span className="stat-label">Total receipts</span>
+              <div className="stat-icon violet">
                 <Receipt size={20} />
               </div>
             </div>
-            <b>{totalCount}</b>
+            <div className="stat-value">{totalCount}</div>
             <span className="card-subtext">Click to view all expenses &rarr;</span>
           </div>
 
-          <div className="card card-clickable" onClick={() => navigate('/review')}>
-            <div className="card-top">
-              <span>Awaiting review</span>
-              <div className="card-icon" style={{ color: '#d97706', background: 'var(--status-review-bg)' }}>
+          <div className="card stat-card amber card-clickable" onClick={() => navigate('/review')}>
+            <div className="card-top stat-top">
+              <span className="stat-label">Awaiting review</span>
+              <div className="stat-icon amber">
                 <Clock size={20} />
               </div>
             </div>
-            <b>{s.n('NEEDS_REVIEW')}</b>
+            <div className="stat-value">{s.n('NEEDS_REVIEW')}</div>
             <span className="card-subtext">Requires human verification &rarr;</span>
           </div>
 
-          <div className="card card-clickable" onClick={() => navigate('/sync')}>
-            <div className="card-top">
-              <span>Synced to QBO</span>
-              <div className="card-icon" style={{ color: '#16a34a', background: 'var(--status-synced-bg)' }}>
+          <div className="card stat-card emerald card-clickable" onClick={() => navigate('/sync')}>
+            <div className="card-top stat-top">
+              <span className="stat-label">Synced to QBO</span>
+              <div className="stat-icon emerald">
                 <CheckCircle2 size={20} />
               </div>
             </div>
-            <b>{s.n('SYNCED')}</b>
+            <div className="stat-value">{s.n('SYNCED')}</div>
             <span className="card-subtext">Verified in QuickBooks Sandbox</span>
           </div>
 
-          <div className="card card-clickable" onClick={() => navigate('/sync')}>
-            <div className="card-top">
-              <span>Sync failures</span>
-              <div className="card-icon" style={{ color: '#dc2626', background: 'var(--status-failed-bg)' }}>
+          <div className="card stat-card rose card-clickable" onClick={() => navigate('/sync')}>
+            <div className="card-top stat-top">
+              <span className="stat-label">Sync failures</span>
+              <div className="stat-icon rose">
                 <AlertCircle size={20} />
               </div>
             </div>
-            <b>{s.n('FAILED')}</b>
+            <div className="stat-value">{s.n('FAILED')}</div>
             <span className="card-subtext">{s.n('FAILED') > 0 ? 'Requires attention' : 'No sync errors'}</span>
           </div>
         </div>
@@ -1039,7 +1047,7 @@ function Recent({ rows }: { rows: Expense[] }) {
 
   return (
     <>
-      <div className="scroll">
+      <div className="table-wrap table-scroll scroll">
         <table>
           <thead>
             <tr>
@@ -1055,14 +1063,16 @@ function Recent({ rows }: { rows: Expense[] }) {
             {r.map(e => (
               <tr key={e.sk} onClick={() => setSel(e)}>
                 <td style={{ fontWeight: 600 }}>{e.merchant || '—'}</td>
-                <td style={{ color: 'var(--text-secondary)' }}>{e.receiptDate}</td>
-                <td className="amount-cell">{money(e.total, e.currency)}</td>
+                <td className="mono" style={{ color: 'var(--text-secondary)' }}>{e.receiptDate}</td>
+                <td className="amount-cell mono">{money(e.total, e.currency)}</td>
                 <td>{e.category || '—'}</td>
                 <td><Badge s={e.syncStatus} /></td>
                 <td>
-                  <button className="btn-outline btn-sm" onClick={ev => { ev.stopPropagation(); setSel(e); }}>
-                    <Eye size={12} /> View
-                  </button>
+                  <div className="row-actions">
+                    <button className="btn btn-outline btn-xs" onClick={ev => { ev.stopPropagation(); setSel(e); }}>
+                      <Eye size={12} /> View
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -1143,10 +1153,11 @@ function UploadPage() {
 
   return (
     <>
-      <div className="head">
+      <div className="head page-header">
         <div>
-          <h1>Upload receipt</h1>
-          <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.875rem' }}>
+          <div className="page-eyebrow">Ingestion Pipeline</div>
+          <h1 className="page-title">Upload receipt</h1>
+          <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.875rem' }}>
             Submit a paper receipt image for automated OCR recognition and ledger matching
           </p>
         </div>
@@ -1357,11 +1368,12 @@ function Page({
 
   return (
     <>
-      <div className="head">
+      <div className="head page-header">
         <div>
-          <h1>{title}</h1>
+          <div className="page-eyebrow">Pipeline Management</div>
+          <h1 className="page-title">{title}</h1>
         </div>
-        <button onClick={x.load} className="btn-secondary">
+        <button onClick={x.load} className="btn btn-outline">
           <RefreshCw size={14} /> Refresh
         </button>
       </div>
@@ -1409,10 +1421,11 @@ function SettingsPage() {
 
   return (
     <>
-      <div className="head">
+      <div className="head page-header">
         <div>
-          <h1>Settings &amp; Preferences</h1>
-          <p style={{ color: 'var(--text-muted)', margin: 0, fontSize: '0.875rem' }}>
+          <div className="page-eyebrow">System Configuration</div>
+          <h1 className="page-title">Settings &amp; Preferences</h1>
+          <p style={{ color: 'var(--text-secondary)', margin: 0, fontSize: '0.875rem' }}>
             Configure theme, user identity, and inspect API gateway connection
           </p>
         </div>
@@ -1623,25 +1636,25 @@ function MainShell() {
 
   return (
     <>
-      <header className="top">
+      <header className="top page-header-bar">
         <Logo />
 
         <div className="top-actions">
-          <span className="env">
-            <span className="env-dot" />
+          <span className="env page-eyebrow">
+            <span className="env-dot pulse" />
             QuickBooks Sandbox
           </span>
 
           <ThemeToggleButton />
 
-          <Link to="/upload" className="btn primary btn-sm" style={{ textDecoration: 'none' }}>
+          <Link to="/upload" className="btn btn-primary btn-sm" style={{ textDecoration: 'none' }}>
             <UpIcon size={14} /> Upload
           </Link>
 
           <button
             type="button"
             onClick={handleLogout}
-            className="btn-signout"
+            className="btn btn-ghost btn-sm btn-signout"
             title="Sign Out of Tallyfold"
             aria-label="Sign Out"
           >
@@ -1652,15 +1665,15 @@ function MainShell() {
 
       {api.DEMO && (
         <div className="demo-banner">
-          <span>Demo Mode</span>
-          Displaying built-in sample expenses (backend calls disabled).
+          <span className="badge badge-amber">Demo Mode</span>
+          <span>Displaying built-in sample expenses (backend calls disabled).</span>
         </div>
       )}
 
-      <div className="shell">
-        <nav aria-label="Main Navigation">
+      <div className="app-shell shell">
+        <aside className="sidebar" aria-label="Main Navigation">
           <div className="nav-links">
-            <div className="nav-section-label">Navigation</div>
+            <div className="nav-section-label section-title">Navigation</div>
             {NAV.map(([to, label, badgeFn, icon]) => (
               <NavLink key={to} to={to} end={to === '/'}>
                 {icon}
@@ -1677,12 +1690,12 @@ function MainShell() {
               </div>
               <div className="user-meta" style={{ flex: 1, minWidth: 0 }}>
                 <span className="user-name">{activeUser}</span>
-                <span className="user-role">Sandbox Auditor</span>
+                <span className="user-role mono">Sandbox Auditor</span>
               </div>
               <button
                 type="button"
                 onClick={handleLogout}
-                className="btn-signout"
+                className="btn-signout btn-ghost"
                 title="Sign Out"
                 aria-label="Sign Out"
                 style={{ border: 'none', padding: '4px' }}
@@ -1691,9 +1704,9 @@ function MainShell() {
               </button>
             </div>
           </div>
-        </nav>
+        </aside>
 
-        <main>
+        <main className="main-content">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/upload" element={<UploadPage />} />
