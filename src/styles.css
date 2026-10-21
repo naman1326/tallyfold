@@ -1557,82 +1557,171 @@ dd {
 }
 
 /* --------------------------------------------------------------------------
-   12. Dropzone & Upload Pipeline
+   12. Dropzone & Upload Pipeline (Rebuilt Old Layout with Cyber-Clinical Theme)
    -------------------------------------------------------------------------- */
 
 .dropzone-container {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  max-width: 760px;
-  margin: 0 auto;
+  max-width: 860px;
   width: 100%;
 }
 
+.drop,
 .dropzone {
   border: 2px dashed var(--border-lit);
   border-radius: var(--radius-xl);
-  padding: 48px 24px;
+  padding: 44px 24px;
   text-align: center;
-  background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-input) 100%);
-  cursor: pointer;
+  background: linear-gradient(180deg, var(--bg-card) 0%, var(--bg-card-elev) 100%);
   transition: all var(--transition);
+  cursor: pointer;
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 14px;
 }
 
+.drop:hover,
+.drop.drag-over,
 .dropzone:hover,
 .dropzone.drag-active {
   border-color: var(--cyan);
-  box-shadow: 0 0 28px var(--cyan-dim);
-  background: var(--bg-card-elev);
+  background: linear-gradient(180deg, var(--bg-card-elev) 0%, rgba(6, 214, 230, 0.06) 100%);
+  box-shadow: 0 0 30px var(--cyan-dim), inset 0 0 15px rgba(6, 214, 230, 0.05);
+  transform: scale(1.004);
 }
 
+.drop-icon,
 .dropzone-icon {
-  width: 64px;
-  height: 64px;
-  border-radius: 16px;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
   background: var(--cyan-dim);
-  color: var(--cyan);
+  border: 1px solid rgba(6, 214, 230, 0.25);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 16px var(--cyan-dim);
+  color: var(--cyan);
+  margin-bottom: 4px;
+  box-shadow: 0 0 18px var(--cyan-dim);
+  transition: transform var(--transition);
 }
 
+.drop:hover .drop-icon,
+.dropzone:hover .dropzone-icon {
+  transform: scale(1.08) translateY(-2px);
+}
+
+.drop img {
+  max-height: 240px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-lit);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6), 0 0 20px var(--cyan-dim);
+  margin-top: 12px;
+  object-fit: contain;
+}
+
+/* Stepper Pipeline Cards */
+.upload-pipeline,
 .steps-tracker {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin: 6px 0;
 }
 
 .step-card {
-  background: var(--bg-card);
+  background: linear-gradient(180deg, var(--bg-card-elev) 0%, var(--bg-card) 100%);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 14px;
+  border-radius: var(--radius-lg);
+  padding: 18px 16px;
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: center;
+  gap: 14px;
+  transition: all var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.step-number,
+.step-num {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'DM Mono', monospace;
+  font-weight: 700;
+  font-size: 13px;
+  background: var(--bg-surface);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  flex-shrink: 0;
   transition: all var(--transition);
 }
 
 .step-card.active {
   border-color: var(--cyan);
-  box-shadow: 0 0 16px var(--cyan-dim);
+  box-shadow: 0 0 20px var(--cyan-dim);
 }
 
+.step-card.active .step-number {
+  background: var(--grad-cyan);
+  color: #02040a;
+  border-color: var(--cyan);
+  box-shadow: 0 0 14px var(--cyan-glow);
+  animation: pulse-step 2s infinite ease-in-out;
+}
+
+.step-card.completed,
 .step-card.done {
-  border-color: var(--emerald);
+  border-color: rgba(16, 217, 146, 0.4);
 }
 
-.step-num {
+.step-card.completed .step-number,
+.step-card.done .step-number {
+  background: var(--emerald);
+  color: #02040a;
+  border-color: var(--emerald);
+  box-shadow: 0 0 12px var(--emerald-glow);
+}
+
+.step-card.actionable {
+  cursor: pointer;
+  position: relative;
+  background: linear-gradient(135deg, var(--bg-card-elev), rgba(6, 214, 230, 0.08));
+  border-color: var(--cyan);
+}
+
+.step-card.actionable:hover {
+  transform: translateY(-2px);
+  border-color: var(--cyan-hover);
+  box-shadow: 0 8px 24px var(--cyan-glow);
+}
+
+.step-card.actionable:active {
+  transform: scale(0.98);
+}
+
+.step-action-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-family: 'DM Mono', monospace;
   font-size: 11px;
   font-weight: 600;
   color: var(--cyan);
+  margin-top: 5px;
+}
+
+@keyframes pulse-step {
+  0%, 100% { box-shadow: 0 0 0 0 var(--cyan-glow); }
+  50% { box-shadow: 0 0 0 8px transparent; }
 }
 
 /* --------------------------------------------------------------------------

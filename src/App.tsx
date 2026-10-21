@@ -1219,9 +1219,9 @@ function UploadPage() {
         </div>
 
         <div className="filter-card">
-          <h3 style={{ margin: '0 0 0.75rem' }}>Receipt metadata</h3>
+          <h3 style={{ margin: '0 0 0.75rem' }} className="section-title">Receipt metadata</h3>
           <div className="filters">
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
               Currency
               <select value={meta.currency} onChange={e => setMeta({ ...meta, currency: e.target.value })}>
                 <option>USD</option>
@@ -1231,12 +1231,12 @@ function UploadPage() {
               </select>
             </label>
 
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
               Checking Account ID
               <input value={meta.paymentAccountId} onChange={e => setMeta({ ...meta, paymentAccountId: e.target.value })} />
             </label>
 
-            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
               Payment Type
               <select value={meta.paymentType} onChange={e => setMeta({ ...meta, paymentType: e.target.value })}>
                 <option>Cash</option>
@@ -1247,7 +1247,7 @@ function UploadPage() {
 
             <div style={{ alignSelf: 'flex-end', marginLeft: 'auto' }}>
               <button
-                className="primary"
+                className="btn btn-primary"
                 disabled={!file || step === 1 || step === 2}
                 onClick={go}
               >
@@ -1291,7 +1291,7 @@ function UploadPage() {
                 </div>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{s.title}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.desc}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{s.desc}</div>
                   {isActionable && (
                     <div className="step-action-badge">
                       Click to review receipt &rarr;
@@ -1304,12 +1304,12 @@ function UploadPage() {
         </div>
 
         {id && (
-          <div className="filter-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span>
-              Assigned Receipt ID: <code>{id}</code>
+          <div className="filter-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              Assigned Receipt ID: <code className="mono-accent">#{id}</code>
             </span>
             {step === 3 && (
-              <Link to={`/review?receiptId=${encodeURIComponent(id)}`} className="btn primary btn-sm">
+              <Link to={`/review?receiptId=${encodeURIComponent(id)}`} className="btn btn-primary btn-sm">
                 Open review queue &rarr;
               </Link>
             )}

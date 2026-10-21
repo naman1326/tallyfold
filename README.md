@@ -49,16 +49,16 @@ flowchart TD
         QBO_Ledger["Sandbox Expense Register<br/>(Account 35 · Checking Ledger)"]
     end
 
-    UI_Review -->|1. GET /api/expenses &amp; POST /api/review| Proxy
-    UI_Upload -->|2. POST /api/upload| Proxy
-    Proxy -->|3. Forward with x-api-key &amp; x-review-token| APIGW
-    APIGW -->|4. Generate Presigned S3 PUT URL| S3
-    UI_Upload -.->|5. Direct Browser-to-S3 Upload (Presigned)| S3
-    S3 -->|6. S3 ObjectCreated Trigger| OCR
-    OCR -->|7. Store Extracted Data (NEEDS_REVIEW)| DDB
-    APIGW -->|8. Validate Review Token &amp; Dispatch| DDB
-    DDB -->|9. Async Ledger Sync (PENDING → SYNCED)| QBO_API
-    QBO_API -->|10. Verified Expense Entry| QBO_Ledger
+    UI_Review -->|"1. GET /api/expenses &amp; POST /api/review"| Proxy
+    UI_Upload -->|"2. POST /api/upload"| Proxy
+    Proxy -->|"3. Forward with x-api-key &amp; x-review-token"| APIGW
+    APIGW -->|"4. Generate Presigned S3 PUT URL"| S3
+    UI_Upload -.->|"5. Direct Browser-to-S3 Upload (Presigned)"| S3
+    S3 -->|"6. S3 ObjectCreated Trigger"| OCR
+    OCR -->|"7. Store Extracted Data (NEEDS_REVIEW)"| DDB
+    APIGW -->|"8. Validate Review Token &amp; Dispatch"| DDB
+    DDB -->|"9. Async Ledger Sync (PENDING to SYNCED)"| QBO_API
+    QBO_API -->|"10. Verified Expense Entry"| QBO_Ledger
 
     classDef screen fill:#18181b,stroke:#027a75,stroke-width:2px,color:#f4f4f5;
     classDef proxy fill:#18181b,stroke:#8b5cf6,stroke-width:2px,color:#f4f4f5;
