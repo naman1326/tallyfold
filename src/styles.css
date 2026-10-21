@@ -1,261 +1,173 @@
 /* ==========================================================================
-   Tallyfold — Cyber-Clinical Dark Mode Theme & Apple Fluid Motion Layout
-   Theme: Cyber-Clinical Dark Mode (from style.md)
-   Layout: Full Apple Fluid Motion & Slide-over Drawer Architecture
+   Tallyfold — Apple Design System & Fluid Motion Interface
+   Designed according to SKILL.md (Fluid Interfaces, Materials, Typography, Craft)
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
-   1. Design Tokens & Color Palettes (Cyber-Clinical Dark Mode Default)
+   1. Design Tokens & Color Palettes
    -------------------------------------------------------------------------- */
 
 :root {
-  /* Canvas & Surface Materials — Cyber-Clinical Dark Mode (Default) */
-  --bg-app: #02040a;
-  --bg-root: #02040a;
-  --bg-surface: #0a0f1c;
-  --bg-surface-solid: #0a0f1c;
-  --bg-surface-hover: rgba(6, 214, 230, 0.08);
-  --bg-surface-active: rgba(6, 214, 230, 0.14);
-  --bg-subtle: #0c1220;
-  --bg-card: #0f1729;
-  --bg-card-elev: #131d35;
-  --bg-card-hover: #131d35;
-  --bg-hover: #1a2540;
-  --bg-input: #0c1220;
-  --bg-modal-backdrop: rgba(2, 4, 10, 0.85);
-  --bg-scrim-blur: 20px;
+  /* Canvas & Surface Materials — Apple Light Mode */
+  --bg-app: #f5f5f7;
+  --bg-surface: rgba(255, 255, 255, 0.82);
+  --bg-surface-solid: #ffffff;
+  --bg-surface-hover: rgba(0, 0, 0, 0.035);
+  --bg-surface-active: rgba(0, 0, 0, 0.07);
+  --bg-subtle: #f0f0f4;
+  --bg-card: #ffffff;
+  --bg-card-hover: #ffffff;
+  --bg-input: #ffffff;
+  --bg-modal-backdrop: rgba(0, 0, 0, 0.35);
+  --bg-scrim-blur: 16px;
+  
+  /* Apple Borders & Hairlines */
+  --border-subtle: rgba(0, 0, 0, 0.04);
+  --border-default: rgba(0, 0, 0, 0.08);
+  --border-hover: rgba(0, 0, 0, 0.16);
+  --border-focus: #027a75;
+  --border-light-edge: rgba(255, 255, 255, 0.85);
 
-  /* Borders & Hairlines */
-  --border-subtle: #141c2e;
-  --border-default: #1e2a45;
-  --border: #1e2a45;
-  --border-hover: #2d3f65;
-  --border-lit: #2d3f65;
-  --border-focus: #06d6e6;
-  --border-glow: #3d5075;
-  --border-light-edge: rgba(6, 214, 230, 0.15);
+  /* Typography Colors — Apple Dynamic Labels */
+  --text-primary: #1d1d1f;
+  --text-secondary: #515154;
+  --text-muted: #86868b;
+  --text-tertiary: #a1a1a6;
+  --text-inverse: #ffffff;
 
-  /* Typography Colors */
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --text-tertiary: #475569;
-  --text-dim: #475569;
-  --text-inverse: #02040a;
+  /* Primary Brand Accent — Cupertino Refined Teal */
+  --primary: #027a75;
+  --primary-hover: #036864;
+  --primary-active: #025350;
+  --primary-light: rgba(2, 122, 117, 0.09);
+  --primary-subtle: rgba(2, 122, 117, 0.05);
+  --primary-text: #027a75;
+  --primary-glow: rgba(2, 122, 117, 0.2);
 
-  /* Primary Brand Accent — Cyber-Clinical Neon Cyan */
-  --primary: #06d6e6;
-  --primary-hover: #05bed0;
-  --primary-active: #009aa4;
-  --primary-light: rgba(6, 214, 230, 0.12);
-  --primary-subtle: rgba(6, 214, 230, 0.06);
-  --primary-text: #02040a;
-  --primary-glow: rgba(6, 214, 230, 0.28);
-  --primary-gradient: linear-gradient(135deg, #06d6e6 0%, #00a8b3 100%);
+  /* Apple Semantic Status Colors (Warm Amber, Sky, Indigo, Mint, Coral) */
+  --status-review-bg: rgba(245, 158, 11, 0.12);
+  --status-review-text: #b45309;
+  --status-review-border: rgba(245, 158, 11, 0.28);
+  --status-review-dot: #f59e0b;
 
-  /* Neon Accent Tokens from style.md */
-  --cyan: #06d6e6;
-  --cyan-dim: rgba(6, 214, 230, 0.12);
-  --cyan-glow: rgba(6, 214, 230, 0.28);
-  --grad-cyan: linear-gradient(135deg, #06d6e6 0%, #00a8b3 100%);
+  --status-pending-bg: rgba(14, 165, 233, 0.12);
+  --status-pending-text: #0369a1;
+  --status-pending-border: rgba(14, 165, 233, 0.28);
+  --status-pending-dot: #0ea5e9;
 
-  --emerald: #10d992;
-  --emerald-dim: rgba(16, 217, 146, 0.12);
-  --emerald-glow: rgba(16, 217, 146, 0.28);
-  --grad-emerald: linear-gradient(90deg, #10d992 0%, #059669 100%);
+  --status-syncing-bg: rgba(99, 102, 241, 0.12);
+  --status-syncing-text: #4338ca;
+  --status-syncing-border: rgba(99, 102, 241, 0.28);
+  --status-syncing-dot: #6366f1;
 
-  --violet: #a78bfa;
-  --violet-dim: rgba(167, 139, 250, 0.12);
-  --violet-glow: rgba(167, 139, 250, 0.28);
-  --grad-violet: linear-gradient(90deg, #a78bfa 0%, #7c3aed 100%);
+  --status-synced-bg: rgba(16, 185, 129, 0.12);
+  --status-synced-text: #047857;
+  --status-synced-border: rgba(16, 185, 129, 0.28);
+  --status-synced-dot: #10b981;
 
-  --amber: #fbbf24;
-  --amber-dim: rgba(251, 191, 36, 0.12);
-  --amber-glow: rgba(251, 191, 36, 0.28);
-  --grad-amber: linear-gradient(90deg, #fbbf24 0%, #d97706 100%);
+  --status-failed-bg: rgba(239, 68, 68, 0.12);
+  --status-failed-text: #b91c1c;
+  --status-failed-border: rgba(239, 68, 68, 0.28);
+  --status-failed-dot: #ef4444;
 
-  --rose: #fb7185;
-  --rose-dim: rgba(251, 113, 133, 0.12);
-  --rose-glow: rgba(251, 113, 133, 0.28);
-  --grad-rose: linear-gradient(90deg, #fb7185 0%, #e11d48 100%);
+  /* Apple Layered Elevation & Ambient Shadows */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.18), 0 4px 16px rgba(0, 0, 0, 0.06);
 
-  /* Semantic Status Colors */
-  --status-review-bg: rgba(251, 191, 36, 0.14);
-  --status-review-text: #fbbf24;
-  --status-review-border: rgba(251, 191, 36, 0.35);
-  --status-review-dot: #fbbf24;
-
-  --status-pending-bg: rgba(6, 214, 230, 0.14);
-  --status-pending-text: #06d6e6;
-  --status-pending-border: rgba(6, 214, 230, 0.35);
-  --status-pending-dot: #06d6e6;
-
-  --status-syncing-bg: rgba(167, 139, 250, 0.14);
-  --status-syncing-text: #a78bfa;
-  --status-syncing-border: rgba(167, 139, 250, 0.35);
-  --status-syncing-dot: #a78bfa;
-
-  --status-synced-bg: rgba(16, 217, 146, 0.14);
-  --status-synced-text: #10d992;
-  --status-synced-border: rgba(16, 217, 146, 0.35);
-  --status-synced-dot: #10d992;
-
-  --status-failed-bg: rgba(251, 113, 133, 0.14);
-  --status-failed-text: #fb7185;
-  --status-failed-border: rgba(251, 113, 133, 0.35);
-  --status-failed-dot: #fb7185;
-
-  /* Layered Elevation & Ambient Shadows */
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.55);
-  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.7);
-  --shadow-modal: 0 30px 80px rgba(0, 0, 0, 0.85), 0 0 40px rgba(6, 214, 230, 0.15);
-
-  /* Corner Radii */
+  /* Corner Radii — Continuous Squircles */
   --radius-xs: 6px;
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 18px;
-  --radius-xl: 24px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
   --radius-full: 9999px;
-  --radius: 12px;
-  --radius-pill: 99px;
 
-  /* Spring & Motion Timing */
+  /* Apple Spring & Motion Timing */
   --ease-spring: cubic-bezier(0.25, 1, 0.5, 1);
   --ease-out-apple: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in-apple: cubic-bezier(0.7, 0, 0.84, 0);
   --transition-fast: 120ms var(--ease-spring);
   --transition-normal: 220ms var(--ease-spring);
   --transition-smooth: 350ms var(--ease-spring);
-  --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 
-  /* Typography Stack — Outfit for display & body */
-  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Apple Typography Stack */
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "SF Pro", "Helvetica Neue", Helvetica, Arial, sans-serif;
   color: var(--text-primary);
-  background-color: var(--bg-app);
-  color-scheme: dark;
 }
+
+/* --------------------------------------------------------------------------
+   Dark Mode Overrides — Apple True OLED & Space Gray Depth
+   -------------------------------------------------------------------------- */
 
 [data-theme="dark"], .dark {
-  /* Same Cyber-Clinical Dark tokens */
-  color-scheme: dark;
-}
+  --bg-app: #000000;
+  --bg-surface: rgba(28, 28, 30, 0.84);
+  --bg-surface-solid: #1c1c1e;
+  --bg-surface-hover: rgba(255, 255, 255, 0.06);
+  --bg-surface-active: rgba(255, 255, 255, 0.1);
+  --bg-subtle: #252528;
+  --bg-card: #1c1c1e;
+  --bg-card-hover: #242426;
+  --bg-input: #161618;
+  --bg-modal-backdrop: rgba(0, 0, 0, 0.65);
+  --bg-scrim-blur: 20px;
 
-/* Light Mode Overrides (Clean Clinical White / Cyan) */
-[data-theme="light"] {
-  --bg-app: #f8fafc;
-  --bg-root: #f8fafc;
-  --bg-surface: #ffffff;
-  --bg-surface-solid: #ffffff;
-  --bg-surface-hover: rgba(8, 145, 178, 0.04);
-  --bg-surface-active: rgba(8, 145, 178, 0.08);
-  --bg-subtle: #f1f5f9;
-  --bg-card: #ffffff;
-  --bg-card-elev: #f1f5f9;
-  --bg-card-hover: #f8fafc;
-  --bg-input: #ffffff;
-  --bg-modal-backdrop: rgba(15, 23, 42, 0.45);
-  --bg-scrim-blur: 16px;
+  --border-subtle: rgba(255, 255, 255, 0.04);
+  --border-default: rgba(255, 255, 255, 0.09);
+  --border-hover: rgba(255, 255, 255, 0.18);
+  --border-focus: #2dd4bf;
+  --border-light-edge: rgba(255, 255, 255, 0.12);
 
-  --border-subtle: #f1f5f9;
-  --border-default: #e2e8f0;
-  --border: #e2e8f0;
-  --border-hover: #cbd5e1;
-  --border-lit: #cbd5e1;
-  --border-focus: #0891b2;
-  --border-glow: #94a3b8;
-  --border-light-edge: rgba(255, 255, 255, 0.9);
+  --text-primary: #f5f5f7;
+  --text-secondary: #a1a1a6;
+  --text-muted: #76767a;
+  --text-tertiary: #525256;
+  --text-inverse: #000000;
 
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #64748b;
-  --text-tertiary: #94a3b8;
-  --text-dim: #94a3b8;
-  --text-inverse: #ffffff;
+  /* Primary Accent — Vibrant Cupertino Mint/Teal in Dark */
+  --primary: #2dd4bf;
+  --primary-hover: #5eead4;
+  --primary-active: #14b8a6;
+  --primary-light: rgba(45, 212, 191, 0.14);
+  --primary-subtle: rgba(45, 212, 191, 0.07);
+  --primary-text: #2dd4bf;
+  --primary-glow: rgba(45, 212, 191, 0.28);
 
-  --primary: #0891b2;
-  --primary-hover: #0e7490;
-  --primary-active: #155e75;
-  --primary-light: rgba(8, 145, 178, 0.1);
-  --primary-subtle: rgba(8, 145, 178, 0.05);
-  --primary-text: #0891b2;
-  --primary-glow: rgba(8, 145, 178, 0.22);
-  --primary-gradient: linear-gradient(135deg, #0891b2 0%, #0e7490 100%);
+  /* Status Colors in Dark Mode */
+  --status-review-bg: rgba(245, 158, 11, 0.16);
+  --status-review-text: #fbbf24;
+  --status-review-border: rgba(245, 158, 11, 0.32);
+  --status-review-dot: #f59e0b;
 
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.07);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.09);
-  --shadow-modal: 0 24px 60px rgba(0, 0, 0, 0.2);
+  --status-pending-bg: rgba(14, 165, 233, 0.16);
+  --status-pending-text: #38bdf8;
+  --status-pending-border: rgba(14, 165, 233, 0.32);
+  --status-pending-dot: #38bdf8;
 
-  --cyan: #0891b2;
-  --cyan-dim: rgba(8, 145, 178, 0.12);
-  --cyan-glow: rgba(8, 145, 178, 0.22);
+  --status-syncing-bg: rgba(99, 102, 241, 0.16);
+  --status-syncing-text: #a5b4fc;
+  --status-syncing-border: rgba(99, 102, 241, 0.32);
+  --status-syncing-dot: #818cf8;
 
-  --emerald: #059669;
-  --emerald-dim: rgba(5, 150, 105, 0.12);
-  --emerald-glow: rgba(5, 150, 105, 0.22);
+  --status-synced-bg: rgba(16, 185, 129, 0.16);
+  --status-synced-text: #34d399;
+  --status-synced-border: rgba(16, 185, 129, 0.32);
+  --status-synced-dot: #34d399;
 
-  --violet: #7c3aed;
-  --violet-dim: rgba(124, 58, 237, 0.12);
-  --violet-glow: rgba(124, 58, 237, 0.22);
+  --status-failed-bg: rgba(239, 68, 68, 0.16);
+  --status-failed-text: #f87171;
+  --status-failed-border: rgba(239, 68, 68, 0.32);
+  --status-failed-dot: #f87171;
 
-  --amber: #d97706;
-  --amber-dim: rgba(217, 119, 6, 0.12);
-  --amber-glow: rgba(217, 119, 6, 0.22);
-
-  --rose: #e11d48;
-  --rose-dim: rgba(225, 29, 72, 0.12);
-  --rose-glow: rgba(225, 29, 72, 0.22);
-
-  --status-review-bg: rgba(217, 119, 6, 0.12);
-  --status-review-text: #b45309;
-  --status-review-border: rgba(217, 119, 6, 0.3);
-  --status-review-dot: #d97706;
-
-  --status-pending-bg: rgba(8, 145, 178, 0.12);
-  --status-pending-text: #0e7490;
-  --status-pending-border: rgba(8, 145, 178, 0.3);
-  --status-pending-dot: #0891b2;
-
-  --status-syncing-bg: rgba(124, 58, 237, 0.12);
-  --status-syncing-text: #6d28d9;
-  --status-syncing-border: rgba(124, 58, 237, 0.3);
-  --status-syncing-dot: #7c3aed;
-
-  --status-synced-bg: rgba(5, 150, 105, 0.12);
-  --status-synced-text: #047857;
-  --status-synced-border: rgba(5, 150, 105, 0.3);
-  --status-synced-dot: #059669;
-
-  --status-failed-bg: rgba(225, 29, 72, 0.12);
-  --status-failed-text: #be123c;
-  --status-failed-border: rgba(225, 29, 72, 0.3);
-  --status-failed-dot: #e11d48;
-
-  color-scheme: light;
-}
-
-/* Ambient Background Mesh */
-#root::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background:
-    radial-gradient(ellipse at 20% 0%, rgba(6, 214, 230, 0.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 0%, rgba(167, 139, 250, 0.05) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 100%, rgba(16, 217, 146, 0.04) 0%, transparent 50%);
-  pointer-events: none;
-  z-index: -1;
-}
-
-[data-theme="light"] #root::before {
-  background:
-    radial-gradient(ellipse at 20% 0%, rgba(8, 145, 178, 0.05) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 0%, rgba(124, 58, 237, 0.04) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 100%, rgba(5, 150, 105, 0.03) 0%, transparent 50%);
+  /* Dark Mode Rim Highlights & Ambient Shadows */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --shadow-modal: 0 30px 80px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 /* --------------------------------------------------------------------------
@@ -324,7 +236,7 @@ p {
 }
 
 code, kbd, samp, pre {
-  font-family: 'DM Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.85em;
   font-variant-ligatures: normal;
 }
@@ -763,17 +675,16 @@ button:disabled, .btn:disabled {
 }
 
 /* Apple Primary Button */
-.primary, .btn.primary, .btn-primary {
-  background: var(--primary-gradient, var(--primary));
-  color: var(--primary-text, #02040a);
+.primary, .btn.primary {
+  background: var(--primary);
+  color: #ffffff;
   border-color: transparent;
   box-shadow: 0 2px 8px var(--primary-glow);
   font-weight: 600;
 }
 
-.primary:hover:not(:disabled), .btn.primary:hover:not(:disabled), .btn-primary:hover:not(:disabled) {
+.primary:hover:not(:disabled), .btn.primary:hover:not(:disabled) {
   background: var(--primary-hover);
-  filter: brightness(1.08);
   box-shadow: 0 4px 12px var(--primary-glow);
 }
 
@@ -1005,9 +916,8 @@ button:disabled, .btn:disabled {
 
 .bar-fill {
   height: 100%;
-  background: var(--primary-gradient, linear-gradient(90deg, #06d6e6, #00a8b3));
+  background: linear-gradient(90deg, var(--primary), #14b8a6);
   border-radius: var(--radius-full);
-  box-shadow: 0 0 10px rgba(6, 214, 230, 0.25);
   transition: width 0.6s var(--ease-spring);
 }
 
@@ -1770,15 +1680,15 @@ dd {
 
 .step-card.active .step-number {
   background: var(--primary);
-  color: var(--primary-text, #02040a);
+  color: #fff;
   border-color: var(--primary);
   animation: pulse-step 2s infinite var(--ease-spring);
 }
 
 .step-card.completed .step-number {
-  background: var(--emerald);
-  color: #02040a;
-  border-color: var(--emerald);
+  background: #10b981;
+  color: #fff;
+  border-color: #10b981;
 }
 
 .step-card.actionable {
@@ -1934,11 +1844,11 @@ dd {
 .preview-bar-teal { height: 6px; width: 65%; background: #027a75; border-radius: 3px; }
 .preview-bar-gray { height: 4px; width: 85%; background: #d1d5db; border-radius: 2px; }
 
-.preview-dark { background: #02040a; border-color: #1e2a45; }
-.preview-dark-nav { width: 32%; background: #0a0f1c; border-right: 1px solid #1e2a45; }
+.preview-dark { background: #000000; border-color: #27272a; }
+.preview-dark-nav { width: 32%; background: #1c1c1e; border-right: 1px solid #27272a; }
 .preview-dark-main { flex: 1; padding: 7px; display: flex; flex-direction: column; gap: 5px; }
-.preview-dark-teal { height: 6px; width: 65%; background: #06d6e6; border-radius: 3px; box-shadow: 0 0 6px rgba(6, 214, 230, 0.4); }
-.preview-dark-gray { height: 4px; width: 85%; background: #1e2a45; border-radius: 2px; }
+.preview-dark-teal { height: 6px; width: 65%; background: #2dd4bf; border-radius: 3px; }
+.preview-dark-gray { height: 4px; width: 85%; background: #3f3f46; border-radius: 2px; }
 
 /* --------------------------------------------------------------------------
    15. Apple Dynamic Island / iOS Banner Toast Notifications
@@ -2375,19 +2285,7 @@ dd {
     padding: 0.85rem 1rem;
   }
 
-  
-.login-card::before, .laser-beam {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--primary), transparent);
-}
-.login-card {
-  position: relative;
-  overflow: hidden;
+  .login-card {
     padding: 1.5rem 1.1rem;
     border-radius: var(--radius-lg);
     gap: 1rem;

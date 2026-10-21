@@ -14,17 +14,17 @@ const STORAGE_KEY = 'tallyfold_theme';
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 function getSystemTheme(): 'light' | 'dark' {
-  if (typeof window === 'undefined') return 'dark';
-  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  if (typeof window === 'undefined') return 'light';
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
     const saved = localStorage.getItem(STORAGE_KEY) as Theme | null;
-    return saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'dark';
+    return saved === 'light' || saved === 'dark' || saved === 'system' ? saved : 'system';
   });
 
-  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('dark');
+  const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
     const updateTheme = () => {

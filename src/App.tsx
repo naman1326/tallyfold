@@ -22,13 +22,13 @@ function Logo() {
       <svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true">
         <defs>
           <linearGradient id="tfLogoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#06d6e6" />
-            <stop offset="100%" stopColor="#00a8b3" />
+            <stop offset="0%" stopColor="var(--primary)" />
+            <stop offset="100%" stopColor="#14b8a6" />
           </linearGradient>
         </defs>
         <rect width="32" height="32" rx="9" fill="url(#tfLogoGrad)" />
-        <path d="M9 7h14v18l-3.5-2.5L16 25l-3.5-2.5L9 25z" fill="#02040a" />
-        <path d="M12.5 14.5l2.5 2.5 4.5-5" stroke="#06d6e6" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M9 7h14v18l-3.5-2.5L16 25l-3.5-2.5L9 25z" fill="#fff" />
+        <path d="M12.5 14.5l2.5 2.5 4.5-5" stroke="var(--primary)" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
       <span>Tallyfold</span>
     </Link>
@@ -165,7 +165,7 @@ const COLS: Record<string, { label: string; field?: SortField; render: (e: Expen
       const pct = Math.round(e.confidence * 100);
       const isGood = pct >= 75;
       return (
-        <span style={{ color: isGood ? 'var(--emerald)' : 'var(--amber)', fontWeight: 600 }}>
+        <span style={{ color: isGood ? '#10b981' : '#f59e0b', fontWeight: 600 }}>
           {pct}%
         </span>
       );
@@ -179,7 +179,7 @@ const COLS: Record<string, { label: string; field?: SortField; render: (e: Expen
     label: 'Review reason',
     render: e => (
       e.reviewReasons.length ? (
-        <span style={{ color: 'var(--amber)', fontSize: '0.82rem' }}>
+        <span style={{ color: '#d97706', fontSize: '0.82rem' }}>
           {e.reviewReasons.join('; ')}
         </span>
       ) : <span style={{ color: 'var(--text-muted)' }}>—</span>
@@ -201,7 +201,7 @@ const COLS: Record<string, { label: string; field?: SortField; render: (e: Expen
   err: {
     label: 'Sync Error',
     render: e => e.syncError ? (
-      <span style={{ color: 'var(--rose)', fontSize: '0.82rem' }}>{e.syncError}</span>
+      <span style={{ color: '#ef4444', fontSize: '0.82rem' }}>{e.syncError}</span>
     ) : '—'
   },
 };
@@ -556,7 +556,7 @@ function ReceiptPreview({
         </div>
       ) : error ? (
         <div className="img-placeholder">
-          <AlertCircle size={32} style={{ color: 'var(--rose)' }} />
+          <AlertCircle size={32} style={{ color: '#ef4444' }} />
           <b>Unable to load receipt preview</b>
           <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--text-muted)' }}>{error}</p>
           <button className="btn-outline btn-sm" onClick={loadUrl} style={{ marginTop: '0.5rem' }}>
@@ -937,7 +937,7 @@ function Dashboard() {
           <div className="card">
             <div className="card-top">
               <span>Total USD spend</span>
-              <div className="card-icon" style={{ color: 'var(--cyan)', background: 'var(--cyan-dim)' }}>
+              <div className="card-icon" style={{ color: '#0f766e', background: 'var(--primary-light)' }}>
                 <DollarSign size={20} />
               </div>
             </div>
@@ -948,7 +948,7 @@ function Dashboard() {
           <div className="card card-clickable" onClick={() => navigate('/expenses')}>
             <div className="card-top">
               <span>Total receipts</span>
-              <div className="card-icon" style={{ color: 'var(--cyan)', background: 'var(--cyan-dim)' }}>
+              <div className="card-icon" style={{ color: '#0284c7', background: 'rgba(2, 132, 199, 0.12)' }}>
                 <Receipt size={20} />
               </div>
             </div>
@@ -959,7 +959,7 @@ function Dashboard() {
           <div className="card card-clickable" onClick={() => navigate('/review')}>
             <div className="card-top">
               <span>Awaiting review</span>
-              <div className="card-icon" style={{ color: 'var(--amber)', background: 'var(--amber-dim)' }}>
+              <div className="card-icon" style={{ color: '#d97706', background: 'var(--status-review-bg)' }}>
                 <Clock size={20} />
               </div>
             </div>
@@ -970,7 +970,7 @@ function Dashboard() {
           <div className="card card-clickable" onClick={() => navigate('/sync')}>
             <div className="card-top">
               <span>Synced to QBO</span>
-              <div className="card-icon" style={{ color: 'var(--emerald)', background: 'var(--emerald-dim)' }}>
+              <div className="card-icon" style={{ color: '#16a34a', background: 'var(--status-synced-bg)' }}>
                 <CheckCircle2 size={20} />
               </div>
             </div>
@@ -981,7 +981,7 @@ function Dashboard() {
           <div className="card card-clickable" onClick={() => navigate('/sync')}>
             <div className="card-top">
               <span>Sync failures</span>
-              <div className="card-icon" style={{ color: 'var(--rose)', background: 'var(--rose-dim)' }}>
+              <div className="card-icon" style={{ color: '#dc2626', background: 'var(--status-failed-bg)' }}>
                 <AlertCircle size={20} />
               </div>
             </div>
@@ -1498,7 +1498,7 @@ function SettingsPage() {
                 </div>
                 <div
                   className="preview-body"
-                  style={{ background: 'linear-gradient(135deg, #f8fafc 50%, #02040a 50%)' }}
+                  style={{ background: 'linear-gradient(135deg, #f5f5f7 50%, #1c1c1e 50%)' }}
                 />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
@@ -1554,9 +1554,9 @@ function SettingsPage() {
               <dt>Data Mode</dt>
               <dd>
                 {api.DEMO ? (
-                  <span style={{ color: 'var(--amber)', fontWeight: 600 }}>Built-in Demo Sample Data</span>
+                  <span style={{ color: '#d97706', fontWeight: 600 }}>Built-in Demo Sample Data</span>
                 ) : (
-                  <span style={{ color: 'var(--emerald)', fontWeight: 600 }}>Live AWS Pipeline Gateway</span>
+                  <span style={{ color: '#10b981', fontWeight: 600 }}>Live AWS Pipeline Gateway</span>
                 )}
               </dd>
             </div>
@@ -1566,9 +1566,9 @@ function SettingsPage() {
                 {x.loading ? (
                   <span>Checking status…</span>
                 ) : x.err ? (
-                  <span style={{ color: 'var(--rose)' }}>Error: {x.err}</span>
+                  <span style={{ color: '#ef4444' }}>Error: {x.err}</span>
                 ) : (
-                  <span style={{ color: 'var(--emerald)' }}>Connected ({x.rows.length} records loaded)</span>
+                  <span style={{ color: '#10b981' }}>Connected ({x.rows.length} records loaded)</span>
                 )}
               </dd>
             </div>
