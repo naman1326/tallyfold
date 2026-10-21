@@ -1250,28 +1250,42 @@ tbody tr:last-child td {
 .x-btn {
   background: var(--bg-surface-hover);
   border: 1px solid var(--border-default);
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-primary);
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  max-width: 36px !important;
+  max-height: 36px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  color: var(--text-primary) !important;
   cursor: pointer;
   transition: all 0.18s var(--ease-spring);
-  flex-shrink: 0;
+  flex-shrink: 0 !important;
   box-shadow: var(--shadow-xs);
+  line-height: 0 !important;
 }
 
 .x-btn svg {
-  stroke: currentColor;
-  stroke-width: 2.4;
-  display: block;
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
+  stroke: currentColor !important;
+  stroke-width: 2.5 !important;
+  display: block !important;
+  flex-shrink: 0 !important;
+  pointer-events: none;
 }
 
 .x-btn:hover {
   background: var(--bg-surface-active);
-  color: var(--text-primary);
+  color: #ffffff !important;
   border-color: var(--border-hover);
   transform: scale(1.08);
 }

@@ -625,7 +625,7 @@ function ReceiptPreview({
                   aria-label="Close lightbox"
                   title="Close (Esc)"
                 >
-                  <X size={18} strokeWidth={2.4} />
+                  <X size={18} strokeWidth={2.5} width={18} height={18} />
                 </button>
               </div>
               <div className="receipt-lightbox-content" onClick={e => e.stopPropagation()}>
@@ -741,7 +741,7 @@ function Detail({
             </div>
           </div>
           <button className="x-btn" onClick={onClose} aria-label="Close dialog" title="Close dialog">
-            <X size={18} strokeWidth={2.4} />
+            <X size={18} strokeWidth={2.5} width={18} height={18} />
           </button>
         </div>
 
